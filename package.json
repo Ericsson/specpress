@@ -1,0 +1,44 @@
+{
+	"name": "specpress",
+	"version": "1.0.1",
+	"description": "Export PDF and/or DOCX files from a subset of Markdown, ASN.1 and JSON files",
+	"bin": {
+		"sp_export": "./src/bin/export.mjs",
+		"sp_generateUML": "./src/bin/generateUML.mjs",
+		"sp_generateUML-file": "./src/bin/generateUML-file.mjs",
+		"sp_init": "./src/bin/init.mjs",
+		"sp_publish": "./src/bin/publish.mjs",
+		"sp_start": "./src/bin/start.mjs",
+		"sp_serve": "./src/bin/serve.mjs",
+		"sp_watch": "./src/bin/watch.mjs"
+	},
+	"main": "index.mjs",
+	"type": "module",
+	"scripts": {
+		"test": "echo \"Error: no test specified\" && exit 1"
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/Ericsson/specpress"
+	},
+	"keywords": [
+		"3GPP",
+		"ASN.1",
+		"DOCX",
+		"JSON",
+		"Markdown",
+		"PDF"
+	],
+	"author": "Serban Purge <serban.purge@ericsson.com>",
+	"license": "MIT",
+	"dependencies": {
+		"chokidar": "^4.0.3",
+		"http-server": "^14.1.1",
+		"node-pandoc": "^0.3.0",
+		"node-plantuml": "^0.9.0",
+		"remark": "^15.0.1",
+		"remark-docx": "^0.1.6",
+		"remark-html": "^16.0.1",
+		"remark-pdf": "^0.0.14"
+	}
+}

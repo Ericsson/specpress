@@ -1,0 +1,11 @@
+#node_modules
+node_modules
+
+#public
+public
+
+# output
+output
+
+#log files
+*.log
