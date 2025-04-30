@@ -1,16 +1,23 @@
-// pathUtils.js
+import { getConfig } from "./index.mjs";
 
 /**
  * Extracts the part of the path before the 'src' folder.
  * @param {string} path - The full path.
  * @returns {string} - The part of the path before 'src'.
  */
-function getPathBeforeSrc(path) {
-	const srcIndex = path.indexOf("src");
+function getPathBeforeSrc(folderPath) {
+	const srcIndex = folderPath.indexOf(
+		getConfig("sourceFolderName", folderPath)
+	);
 	if (srcIndex === -1) {
-		throw new Error("The path does not contain a 'src' folder.");
+		throw new Error(
+			`The path does not contain a ${getConfig(
+				"sourceFolderName",
+				folderPath
+			)} folder.`
+		);
 	}
-	return path.substring(0, srcIndex);
+	return folderPath.substring(0, srcIndex);
 }
 
 export { getPathBeforeSrc };

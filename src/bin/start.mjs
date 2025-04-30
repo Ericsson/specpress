@@ -1,12 +1,15 @@
 #!/usr/bin/env node
-import fs from "fs";
 import { normalize } from "path";
 import {
 	publishHtmlToPublicFolder,
 	serveLocalhostFromPublicFolder,
 	watchWorkingFolder,
 } from "../api/index.mjs";
-import { ensureDirectoryExists, getPathBeforeSrc } from "../helpers/index.mjs";
+import {
+	ensureDirectoryExists,
+	getPathBeforeSrc,
+	getPathFiguresFolder,
+} from "../helpers/index.mjs";
 const pathWorkingDirectory = normalize(process.cwd());
 let pathRootDirectory, pathPublicDirectory, pathFiguresDirectory;
 try {
@@ -20,12 +23,9 @@ pathPublicDirectory = normalize(`${pathRootDirectory}/public`);
 ensureDirectoryExists(pathPublicDirectory);
 
 //fugures folder
-// Read the JSON configuration file
-const config = JSON.parse(
-	fs.readFileSync(`${pathRootDirectory}/sp.config.json`, "utf-8")
-);
-pathFiguresDirectory = normalize(
-	`${pathRootDirectory}/src/${config.pathFiguresFolder}`
+pathFiguresDirectory = getPathFiguresFolder(
+	pathRootDirectory,
+	pathWorkingDirectory
 );
 ensureDirectoryExists(pathFiguresDirectory);
 

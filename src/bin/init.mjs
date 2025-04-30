@@ -25,7 +25,10 @@ await writeBufferToFile(
 );
 
 // creates the config.json file
-const spConfigFileContent = `{\n"pathFiguresFolder": "/assets/figures"\n}\n`;
+const spConfigFileContent = `{
+"pathFiguresFolder": "/assets/figures",
+"sourceFolderName": "src"
+}\n`;
 
 await writeBufferToFile(
 	`${pathWorkingDirectory}/sp.config.json`,

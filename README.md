@@ -47,9 +47,21 @@ npx sp_init
 
 As part of its initialization sprecpress created the `src` folder in the projec’s root folder `ts101`. Use the `src` folder to store all your specifications files, i.e., the: `.md, .json, .asn, .txt` files. Within the `src` folder you can create whatever structure of subfolder you like. You could also consider cloning a git repository containing you specification files under the `src` folder.
 
+If you want, you can rename the `src` folder to whatever name you like. Should you do so, you should also update the value of the `sourceFolderName` parameter in the `sp.config.json` file accordantly, e.g., `”sourceFolderName”: “yourPreferedName”`.
+
 #### /ts101/sp.config.json file
 
-The initialization process also publishes a configuration files `sp.config.json` in the root folder `/ts101/sp.config.json`. This files contains the `”pathFiguresFolder": "/assets/figures"` parameter which indicates the `src` subfolder where specpress will save the `.png` files it generates for the UML sequence diagrams. The default values is `/assets/figures` so the files will be saved in the `/ts101/src/assets/figures` folder. Before going any further, please make sure to set the value of `pathFiguresFolder` so that it points to the right `src` subfolder in your folder structure.
+The initialization process also publishes a configuration files `sp.config.json` in the root folder `/ts101/sp.config.json`.
+
+```
+#./sp.config.json
+{
+	"pathFiguresFolder": "/assets/figures",
+	"sourceFolderName": "src"
+}
+```
+
+Along with the `"sourceFolderName": "src"` parameter, this files contains the `”pathFiguresFolder": "/assets/figures"` parameter which indicates the `src` subfolder where specpress will save the `.png` files it generates for the UML sequence diagrams. The default values is `/assets/figures` so the files will be saved in the `/ts101/src/assets/figures` folder. Before going any further, please make sure to set the value of `pathFiguresFolder` so that it points to the right `src` subfolder in your folder structure.
 `
 
 ## Usage
