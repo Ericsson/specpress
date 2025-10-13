@@ -3,13 +3,13 @@ import { normalize } from "path";
 import { watchWorkingFolder } from "../api/index.mjs";
 import {
 	ensureDirectoryExists,
-	getPathBeforeSrc,
+	getPathBeforeSourceFolder,
 	getPathFiguresFolder,
 } from "../helpers/index.mjs";
 const pathWorkingDirectory = normalize(process.cwd());
 let pathRootDirectory, pathPublicDirectory, pathFiguresDirectory;
 try {
-	pathRootDirectory = getPathBeforeSrc(pathWorkingDirectory);
+	pathRootDirectory = getPathBeforeSourceFolder(pathWorkingDirectory);
 } catch (error) {
 	console.error(error.message);
 	process.exit(1); // Exit with a non-zero code to indicate an error

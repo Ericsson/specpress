@@ -2,7 +2,7 @@
 import { normalize } from "path";
 import {
 	ensureDirectoryExists,
-	getPathBeforeSrc,
+	getPathWorkingSpecRootFolder,
 	getPathFiguresFolder,
 } from "../helpers/index.mjs";
 import { generateUmlForFile } from "../api/index.mjs";
@@ -11,7 +11,7 @@ const pathWorkingDirectory = normalize(process.cwd());
 
 let pathRootDirectory, pathFiguresDirectory, pathFile;
 try {
-	pathRootDirectory = getPathBeforeSrc(pathWorkingDirectory);
+	pathRootDirectory = getPathWorkingSpecRootFolder(pathWorkingDirectory);
 } catch (error) {
 	console.error(error.message);
 	process.exit(1); // Exit with a non-zero code to indicate an error
