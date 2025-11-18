@@ -30,9 +30,11 @@ function getPathWorkingSpecRootFolder(folderPath) {
 		}
 
 		// Extract the part of the path after 'src'
-		const pathAfterSrc = pathSegments.slice(srcIndex + 1).join(path.sep);
+		const pathWorkingSpecRootFolder = pathSegments
+			.slice(0, srcIndex + 2)
+			.join(path.sep);
 
-		return pathAfterSrc;
+		return pathWorkingSpecRootFolder;
 	} catch (error) {
 		console.error("Error processing the path:", error);
 		return null;

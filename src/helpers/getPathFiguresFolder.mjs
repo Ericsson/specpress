@@ -1,5 +1,6 @@
 import { normalize } from "path";
 import { getConfig } from "./index.mjs";
+import { getPathWorkingSpecRootFolder } from "./index.mjs";
 
 /**
  * Extracts the part of the path before the 'src' folder.
@@ -9,10 +10,10 @@ import { getConfig } from "./index.mjs";
  */
 function getPathFiguresFolder(pathRootFolder, pathWorkingFolder) {
 	return normalize(
-		`${pathRootFolder}/${getConfig(
-			"sourceFolderName",
+		`${getPathWorkingSpecRootFolder(pathWorkingFolder)}/${getConfig(
+			"pathFiguresFolder",
 			pathWorkingFolder
-		)}/${getConfig("pathFiguresFolder", pathWorkingFolder)}`
+		)}`
 	);
 }
 
