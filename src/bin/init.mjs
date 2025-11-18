@@ -5,14 +5,14 @@ import { ensureDirectoryExists } from "../helpers/index.mjs";
 import { writeBufferToFile } from "../utils/index.mjs";
 
 const pathWorkingDirectory = normalize(process.cwd());
-// create the source folder ./specifications
+// create the source folder ./src
 
-await ensureDirectoryExists(`${pathWorkingDirectory}/specifications`);
+await ensureDirectoryExists(`${pathWorkingDirectory}/src`);
 
 // creates the config.json file
 const spConfigFileContent = `{
 "pathFiguresFolder": "/assets/figures",
-"sourceFolderName": "specifications"
+"sourceFolderName": "src"
 }\n`;
 
 await writeBufferToFile(
