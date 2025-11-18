@@ -5,7 +5,7 @@ import { getConfig } from "./index.mjs";
  * @param {string} path - The full path.
  * @returns {string} - The part of the path before 'src'.
  */
-function getPathBeforeSrc(folderPath) {
+function getPathBeforeSourceFolder(folderPath) {
 	const srcIndex = folderPath.indexOf(
 		getConfig("sourceFolderName", folderPath)
 	);
@@ -20,4 +20,4 @@ function getPathBeforeSrc(folderPath) {
 	return folderPath.substring(0, srcIndex);
 }
 
-export { getPathBeforeSrc };
+export { getPathBeforeSourceFolder };

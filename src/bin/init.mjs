@@ -5,24 +5,9 @@ import { ensureDirectoryExists } from "../helpers/index.mjs";
 import { writeBufferToFile } from "../utils/index.mjs";
 
 const pathWorkingDirectory = normalize(process.cwd());
-// create the ./src folder
+// create the source folder ./src
 
 await ensureDirectoryExists(`${pathWorkingDirectory}/src`);
-
-const gitignoreFileContent = `
-#node_modules\n
-node_modules\n\n
-#public folder\n
-public\n\n
-# export folder\n
-export\n\n
-# log files\n
-*.log\n\n`;
-
-await writeBufferToFile(
-	`${pathWorkingDirectory}/.gitignore`,
-	Buffer.from(gitignoreFileContent)
-);
 
 // creates the config.json file
 const spConfigFileContent = `{

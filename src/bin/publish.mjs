@@ -2,11 +2,14 @@
 
 import { normalize } from "path";
 import { publishHtmlToPublicFolder } from "../api/index.mjs";
-import { ensureDirectoryExists, getPathBeforeSrc } from "../helpers/index.mjs";
+import {
+	ensureDirectoryExists,
+	getPathBeforeSourceFolder,
+} from "../helpers/index.mjs";
 const pathWorkingDirectory = normalize(process.cwd());
 let pathRootDirectory, pathPublicDirectory;
 try {
-	pathRootDirectory = getPathBeforeSrc(pathWorkingDirectory);
+	pathRootDirectory = getPathBeforeSourceFolder(pathWorkingDirectory);
 } catch (error) {
 	console.error(error.message);
 	process.exit(1); // Exit with a non-zero code to indicate an error

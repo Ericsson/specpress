@@ -7,7 +7,8 @@ import { getFileName } from "./getFileName.mjs";
 import { getFileNameWithoutExtension } from "./getFileNameWithoutExtension.mjs";
 import { getFolderName } from "./getFolderName.mjs";
 import { getFolderPath } from "./getFolderPath.mjs";
-import { getPathBeforeSrc } from "./getPathBeforeSrc.mjs";
+import { getPathWorkingSpecRootFolder } from "./getPathWorkingSpecRootFolder.mjs";
+import { getPathBeforeSourceFolder } from "./getPathBeforeSourceFolder.mjs";
 import { getPathFiguresFolder } from "./getPathFiguresFolder.mjs";
 import { rewriteFiguresPathsInBuffer } from "./rewriteFiguresPathsInBuffer.mjs";
 
@@ -21,7 +22,8 @@ export {
 	getFileNameWithoutExtension,
 	getFolderName,
 	getFolderPath,
-	getPathBeforeSrc,
+	getPathWorkingSpecRootFolder,
+	getPathBeforeSourceFolder,
 	getPathFiguresFolder,
 	rewriteFiguresPathsInBuffer,
 };

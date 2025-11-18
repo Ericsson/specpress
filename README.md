@@ -1,6 +1,8 @@
 # SpecPress
 
-Export PDF and/or DOCX files from a subset of Markdown, ASN.1 and JSON files.
+-   WYSIWYG (what you see is what you get) - like experience while editing specifications.
+-   UML séquence diagrammes generation from text files.
+-   PDF | DOCX | HTML export from a set of Markdown, ASN.1 and JSON files.
 
 ## System Requirements
 
@@ -19,14 +21,14 @@ Additionally, if you eould like to use pandoc to convert mardown files into pdf 
 
 ### Initialize your project
 
-Create a folder for your specification, move into the folder and initialize `npm` by running the following commands in the terminal:
+Create a folder in which, later on, you will clone your specifications git repositories, move into the folder and initialize `npm` by running the following commands in the terminal:
 
 ```
-# create a new folder called for example "ts101"
-mkdir ts101
+# create a new folder called for example "mySpecifications"
+mkdir mySpecifications
 
 # move into the folder
-cd ts101
+cd mySpecifications
 
 # initialize npm
 npm init
@@ -43,15 +45,24 @@ npm install specpress  --save-dev
 npx sp_init
 ```
 
-#### /ts101/src folder
+#### /mySpecifications/src folder
 
-As part of its initialization sprecpress created the `src` folder in the projec’s root folder `ts101`. Use the `src` folder to store all your specifications files, i.e., the: `.md, .json, .asn, .txt` files. Within the `src` folder you can create whatever structure of subfolder you like. You could also consider cloning a git repository containing you specification files under the `src` folder.
+As part of its initialization, sprecpress created the `src` folder in the projec’s root folder `mySpecifications`. Use the `src` folder to store all your specifications git repositorues. For example, you can clone the git repository of your specification under the `src` folder.
+
+```
+# move into the src folder
+cd src
+
+# clone the git repository of your specification
+# /mySpecifications/src
+git clone ssh://git@forge.3gpp.org:29419/fs_6gspecs_new/38423.git
+```
 
 If you want, you can rename the `src` folder to whatever name you like. Should you do so, you should also update the value of the `sourceFolderName` parameter in the `sp.config.json` file accordantly, e.g., `”sourceFolderName”: “yourPreferedName”`.
 
-#### /ts101/sp.config.json file
+#### /mySpecifications/sp.config.json file
 
-The initialization process also publishes a configuration files `sp.config.json` in the root folder `/ts101/sp.config.json`.
+The initialization process also publishes a configuration files `sp.config.json` in the root folder `/mySpecifications/sp.config.json`.
 
 ```
 #./sp.config.json
@@ -61,17 +72,77 @@ The initialization process also publishes a configuration files `sp.config.json`
 }
 ```
 
-Along with the `"sourceFolderName": "src"` parameter, this files contains the `”pathFiguresFolder": "/assets/figures"` parameter which indicates the `src` subfolder where specpress will save the `.png` files it generates for the UML sequence diagrams. The default values is `/assets/figures` so the files will be saved in the `/ts101/src/assets/figures` folder. Before going any further, please make sure to set the value of `pathFiguresFolder` so that it points to the right `src` subfolder in your folder structure.
+Along with the `"sourceFolderName": "src"` parameter, this file contains the `”pathFiguresFolder": "/assets/figures"` parameter which indicates in which subfolder of your specification, specpress will save the `.png` files it generates for the UML sequence diagrams. The default value is `/assets/figures` so if you are working with the 38423 specification, the files will be saved in the `/mySpecifications/src/38423/assets/figures` folder.
 `
 
 ## Usage
 
-Move now into your working directory which can be the `src` folder or a subfolder of `src`.
+Move now into your working directory which can be the `/src/38423` folder or a subfolder of `/src/38423`.
 In the working folder you can use the following specpress commands in the terminal:
+
+### WYSIWYG - like experience while working on your specifications
+
+Specpress enables you to have a “what you see is what you get” - like experience when editing your specifications by displaying the specification as a webpage. For doing so, run the `npx sp_start` command in the terminal and specpress will convert and concatenate the specification files from your working directory into a single `hrml` file which is published on a local `http server`. The resulting web page can be displayed in any browser that points at the `http://localhost::8080` address.
+
+```
+npx sp_start
+```
+
+The `sp_strat` command is equivalent to running in parallel the `sp_pubish`, `sp_watch` and `sp_serve` commands described below.
+
+### Display the specification as a web page
+
+Execute the following commands to display your specification as a webpage on your local http server:
+
+```
+#create the /mySpecifications/public/index.html file
+npx sp_publish
+
+# start the http server from the /mySpecifications/public folder
+# the server is accessible at http://lcalhost:8080
+npx sp_serve
+```
+
+### Watch for changes in your source files
+
+```
+npx sp_watch
+```
+
+The `sp_watch` command will:
+
+-   watch for changes in your specification’s source files `[".asn", ".json", ".md"]` and update the `index.html` file according to your changes,
+-   watch for changes in your UML sequence diagrams source files `[".puml", ".txt"]` and generate the corresponding PNG files in the `/mySpecifications/src/38423/assets/figures` folder
+
+### Generate UML diagrams from text files using PlantUML
+
+Specpress enables you to automatically generate `.png` files containing UML diagrams using as an input a text file containing a textual description of the UML diagram as presented in the example below:
+
+```
+
+#/mySpecifications/src/38423/example.txt
+@startuml
+Alice -> Bob: Authentication Request
+Boby --> Alice: Authentication Response
+@enduml
+
+```
+
+The `.png` files are saved in the specification's subfolder indicated in the `sp.config.json` files.
+
+```
+
+# generale .png files for all the .txt files in the working folder
+npx sp_generateUML
+
+# generale .png file for a specific .txt file in the working folder
+npx sp_generateUML-file ./example.txt
+
+```
 
 ### Export a .docx|.html|.pdf file
 
-Specpress enables you to export a file which contains all the specification files from the working folder. The exported file will be saved in the `/ts101/export` folder.
+Specpress enables you to export a file which contains all the specification files from the working folder. The exported file will be saved in the `/mySpecifications/export` folder.
 
 ```
 # export a pdf file
@@ -89,67 +160,9 @@ npx sp_export pdf pandoc
 # export a docx file using pandoc
 npx sp_export docx pandoc
 
-# export a html file using
+# export a html file using pandoc
 npx sp_export html pandoc
 ```
-
-### Generate UML diagrams from text files using PlantUML
-
-Specpress enables you to automatically generate `.png` files containing UML diagrams using as an input a text file containing a textual description of the UML diagram as presented in the example below:
-
-```
-
-#/ts101/src/example.txt
-@startuml
-Alice -> Bob: Authentication Request
-Boby --> Alice: Authentication Response
-@enduml
-
-```
-
-The `.png` files are saved in the src subfolder indicated in the `sp.config.json` files.
-
-```
-
-# generale .png files for all the .txt files in the working folder
-npx sp_generateUML
-
-# generale .png file for a specific .txt file in the working folder
-npx sp_generateUML-file ./example.txt
-
-```
-
-### Display the specification as a web page
-
-Execute the following commands to display your specification as a webpage on your local http server:
-
-```
-#create the /ts101/public/index.html file
-npx sp_publish
-
-# start the http server from the /ts101/public folder
-# the server is accessible at http://lcalhost:8080
-npx sp_serve
-```
-
-### Watch for changes in your source files
-
-```
-npx sp_watch
-```
-
-The `sp_watch` command will:
-
--   watch for changes in your specification’s source files `[".asn", ".json", ".md"]` and update the `index.html` file according to your changes,
--   watch for changes in your UML sequence diagrams source files `[".puml", ".txt"]` and generate the corresponding PNG files in the `/ts101/src/assets/figures` folder
-
-### Start working on your specification
-
-```
-npx sp_start
-```
-
-The `sp_strat` command is equivalent to running the `sp_pubish`, `sp_watch` and `sp_serve` commands at once.
 
 ## Repository
 
