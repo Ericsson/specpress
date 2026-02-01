@@ -1,6 +1,6 @@
 {
 	"name": "specpress",
-	"version": "2.0.0",
+	"version": "2.1.0",
 	"description": "Export PDF and/or DOCX files from a subset of Markdown, ASN.1 and JSON files",
 	"bin": {
 		"sp_export": "./src/bin/export.mjs",
@@ -15,7 +15,8 @@
 	"main": "index.mjs",
 	"type": "module",
 	"scripts": {
-		"test": "echo \"Error: no test specified\" && exit 1"
+		"test": "node tests/run.mjs",
+		"test:watch": "node --watch tests/run.mjs"
 	},
 	"repository": {
 		"type": "git",

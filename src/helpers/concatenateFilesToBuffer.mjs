@@ -1,47 +1,27 @@
 import { promises as fs } from "fs";
-import { normalize, resolve } from "path";
-import {
-	getAllFiles,
-	getFileExtension,
-	rewriteFiguresPathsInBuffer,
-} from "./index.mjs";
+import { normalize, resolve, extname } from "path";
+import { getAllFiles, rewriteFiguresPathsInBuffer } from "./index.mjs";
 
-export async function concatenateFilesToBuffer(folderPath) {
-	const fileTypesToMark = [".md", ".asn", ".json"];
+const FILE_TYPES = [".md", ".asn", ".json"];
+const CODE_BLOCK_TYPES = [".asn", ".json"];
+const NEWLINE = Buffer.from("\n");
+const CODE_START = Buffer.from("```\n");
+const CODE_END = Buffer.from("\n```");
 
-	const fileTypesToMarkAsCodeBlock = [".asn", ".json"];
-
-	const newlineBuffer = Buffer.from("\n");
-
-	const files = await getAllFiles(folderPath);
+export const concatenateFilesToBuffer = async (folderPath) => {
+	const files = (await getAllFiles(folderPath)).filter(f => FILE_TYPES.includes(extname(f)));
+	const baseDir = normalize(`${resolve(folderPath, "src")}/src/`);
+	
 	const buffers = await Promise.all(
-		files
-			.filter((file) => fileTypesToMark.includes(getFileExtension(file)))
-			.map(async (file) => {
-				const fileBuffer = await readFileAsBuffer(file);
-				if (
-					fileTypesToMarkAsCodeBlock.includes(getFileExtension(file))
-				) {
-					return Buffer.concat([
-						Buffer.from("```\n"),
-						fileBuffer,
-						Buffer.from("\n```"),
-						newlineBuffer,
-					]);
-				} else {
-					return Buffer.concat([fileBuffer, newlineBuffer]);
-				}
-			})
+		files.map(async (file) => {
+			const content = await fs.readFile(file);
+			const ext = extname(file);
+			const wrapped = CODE_BLOCK_TYPES.includes(ext)
+				? Buffer.concat([CODE_START, content, CODE_END, NEWLINE])
+				: Buffer.concat([content, NEWLINE]);
+			return rewriteFiguresPathsInBuffer(wrapped, baseDir);
+		})
 	);
 
-	const rewrtittenBuffers = buffers.map((buffer) => {
-		const baseDir = normalize(`${resolve(folderPath, "src")}/src/`);
-		return rewriteFiguresPathsInBuffer(buffer, baseDir);
-	});
-
-	return Buffer.concat(rewrtittenBuffers);
-}
-
-async function readFileAsBuffer(pathFiile) {
-	return await fs.readFile(pathFiile);
-}
+	return Buffer.concat(buffers);
+};

@@ -1,22 +1,13 @@
 import nodePandoc from "node-pandoc";
+import { promisify } from "util";
 
-export async function pandocBuffer(
-	sourceBuffer,
-	pandocType,
-	pathExportFolder,
-	exportName
-) {
-	let src = sourceBuffer;
+const pandocAsync = promisify(nodePandoc);
 
-	// Arguments can be either a single String or in an Array
-	let args = `-f markdown -t ${pandocType} -o ${pathExportFolder}/${exportName}.${pandocType}`;
-
-	// Set your callback function
-	const callback = (err, result) => {
-		if (err) console.error("Error: ", err);
-		return result;
-	};
-
-	// Call pandoc
-	nodePandoc(src, args, callback);
+export async function pandocBuffer(sourceBuffer, pandocType, pathExportFolder, exportName) {
+	const args = `-f markdown -t ${pandocType} -o ${pathExportFolder}/${exportName}.${pandocType}`;
+	try {
+		return await pandocAsync(sourceBuffer, args);
+	} catch (error) {
+		throw new Error(`Pandoc conversion failed: ${error.message}`);
+	}
 }

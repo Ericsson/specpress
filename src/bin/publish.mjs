@@ -5,11 +5,13 @@ import { publishHtmlToPublicFolder } from "../api/index.mjs";
 import {
 	ensureDirectoryExists,
 	getPathBeforeSourceFolder,
+	getConfig,
 } from "../helpers/index.mjs";
 const pathWorkingDirectory = normalize(process.cwd());
 let pathRootDirectory, pathPublicDirectory;
 try {
-	pathRootDirectory = getPathBeforeSourceFolder(pathWorkingDirectory);
+	const sourceFolderName = getConfig("sourceFolderName", pathWorkingDirectory);
+	pathRootDirectory = getPathBeforeSourceFolder(pathWorkingDirectory, sourceFolderName);
 } catch (error) {
 	console.error(error.message);
 	process.exit(1); // Exit with a non-zero code to indicate an error
