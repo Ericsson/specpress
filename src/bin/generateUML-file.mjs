@@ -4,6 +4,7 @@ import {
 	ensureDirectoryExists,
 	getPathBeforeSourceFolder,
 	getPathFiguresFolder,
+	getConfig,
 } from "../helpers/index.mjs";
 import { generateUmlForFile } from "../api/index.mjs";
 
@@ -11,7 +12,10 @@ const pathWorkingDirectory = normalize(process.cwd());
 
 let pathRootDirectory, pathFiguresDirectory, pathFile;
 try {
-	pathRootDirectory = getPathBeforeSourceFolder(pathWorkingDirectory);
+	const sourceFolderName = getConfig("sourceFolderName", pathWorkingDirectory);
+	pathRootDirectory = getPathBeforeSourceFolder(pathWorkingDirectory, sourceFolderName);
+	const figuresFolder = getConfig("pathFiguresFolder", pathWorkingDirectory);
+	pathFiguresDirectory = getPathFiguresFolder(pathWorkingDirectory, sourceFolderName, figuresFolder);
 } catch (error) {
 	console.error(error.message);
 	process.exit(1); // Exit with a non-zero code to indicate an error
@@ -19,10 +23,6 @@ try {
 
 // Read the JSON configuration file
 
-pathFiguresDirectory = getPathFiguresFolder(
-	pathRootDirectory,
-	pathWorkingDirectory
-);
 await ensureDirectoryExists(pathFiguresDirectory);
 
 const args = process.argv.slice(2);

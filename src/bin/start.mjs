@@ -1,40 +1,27 @@
 #!/usr/bin/env node
 import { normalize } from "path";
-import {
-	publishHtmlToPublicFolder,
-	serveLocalhostFromPublicFolder,
-	watchWorkingFolder,
-} from "../api/index.mjs";
-import {
-	ensureDirectoryExists,
-	getPathBeforeSourceFolder,
-	getPathFiguresFolder,
-} from "../helpers/index.mjs";
+import { publishHtmlToPublicFolder, serveLocalhostFromPublicFolder, watchWorkingFolder } from "../api/index.mjs";
+import { ensureDirectoryExists, getPathBeforeSourceFolder, getPathFiguresFolder, getConfig } from "../helpers/index.mjs";
+
 const pathWorkingDirectory = normalize(process.cwd());
-let pathRootDirectory, pathPublicDirectory, pathFiguresDirectory;
+
 try {
-	pathRootDirectory = getPathBeforeSourceFolder(pathWorkingDirectory);
+	const sourceFolderName = getConfig("sourceFolderName", pathWorkingDirectory);
+	const figuresFolder = getConfig("pathFiguresFolder", pathWorkingDirectory);
+	
+	const pathRootDirectory = getPathBeforeSourceFolder(pathWorkingDirectory, sourceFolderName);
+	const pathPublicDirectory = normalize(`${pathRootDirectory}/public`);
+	const pathFiguresDirectory = getPathFiguresFolder(pathWorkingDirectory, sourceFolderName, figuresFolder);
+
+	await Promise.all([
+		ensureDirectoryExists(pathPublicDirectory),
+		ensureDirectoryExists(pathFiguresDirectory)
+	]);
+
+	await publishHtmlToPublicFolder(pathWorkingDirectory, pathPublicDirectory);
+	watchWorkingFolder(pathWorkingDirectory, pathPublicDirectory, pathFiguresDirectory);
+	serveLocalhostFromPublicFolder(pathRootDirectory, pathPublicDirectory);
 } catch (error) {
 	console.error(error.message);
-	process.exit(1); // Exit with a non-zero code to indicate an error
+	process.exit(1);
 }
-// public folder
-pathPublicDirectory = normalize(`${pathRootDirectory}/public`);
-ensureDirectoryExists(pathPublicDirectory);
-
-//fugures folder
-pathFiguresDirectory = getPathFiguresFolder(
-	pathRootDirectory,
-	pathWorkingDirectory
-);
-ensureDirectoryExists(pathFiguresDirectory);
-
-publishHtmlToPublicFolder(pathWorkingDirectory, pathPublicDirectory);
-
-watchWorkingFolder(
-	pathWorkingDirectory,
-	pathPublicDirectory,
-	pathFiguresDirectory
-);
-
-serveLocalhostFromPublicFolder(pathRootDirectory, pathPublicDirectory);

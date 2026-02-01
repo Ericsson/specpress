@@ -1,40 +1,38 @@
-// watcher.mjs
 import chokidar from "chokidar";
-import { generateUmlForFile } from "../api/index.mjs";
-import { publishHtmlToPublicFolder } from "../api/index.mjs";
-
 import { extname } from "path";
 
-export function watchWorkingFolder(
-	pathWorkingFolder,
-	pathPublicFolder,
-	pathFiguresFolder
-) {
-	const specificationFileExtensions = [".md", ".asn", ".json"];
+const SPEC_EXTENSIONS = [".md", ".asn", ".json"];
+const UML_EXTENSIONS = [".puml", ".txt"];
+const DEBOUNCE_MS = 300;
 
-	const umlTextFileExtensions = [".puml", ".txt"];
+let publishTimeout;
+const umlTimeouts = new Map();
 
-	// Initialize chokidar to watch the directory
+export const watchWorkingFolder = (pathWorkingFolder, pathPublicFolder, pathFiguresFolder) => {
 	const watcher = chokidar.watch(pathWorkingFolder, {
-		ignored: /(^|[\/\\])\../, // Ignore dotfiles
+		ignored: /(^|[\/\\])\../,
 		persistent: true,
 	});
 
-	// Add event listener for file changes
-	watcher.on("change", (pathFiile) => {
-		// Determine which script to run based on file extension
-		const fileExtension = extname(pathFiile);
+	watcher.on("change", async (pathFile) => {
+		const ext = extname(pathFile);
+		console.log(`File changed: ${pathFile}`);
 
-		if (specificationFileExtensions.includes(fileExtension)) {
-			publishHtmlToPublicFolder(pathWorkingFolder, pathPublicFolder);
-			console.log(`File changed: ${pathFiile}`);
-		} else if (umlTextFileExtensions.includes(fileExtension)) {
-			console.log(`File changed: ${pathFiile}`);
-			generateUmlForFile(pathFiile, pathFiguresFolder);
-		} else {
-			return;
+		if (SPEC_EXTENSIONS.includes(ext)) {
+			clearTimeout(publishTimeout);
+			publishTimeout = setTimeout(async () => {
+				const { publishHtmlToPublicFolder } = await import("./publishHtmlToPublicFolder.mjs");
+				await publishHtmlToPublicFolder(pathWorkingFolder, pathPublicFolder);
+			}, DEBOUNCE_MS);
+		} else if (UML_EXTENSIONS.includes(ext)) {
+			umlTimeouts.get(pathFile) && clearTimeout(umlTimeouts.get(pathFile));
+			umlTimeouts.set(pathFile, setTimeout(async () => {
+				const { generateUmlForFile } = await import("./generateUmlForFile.mjs");
+				await generateUmlForFile(pathFile, pathFiguresFolder);
+				umlTimeouts.delete(pathFile);
+			}, DEBOUNCE_MS));
 		}
 	});
 
 	console.log(`Watching for file changes in: ${pathWorkingFolder}`);
-}
+};

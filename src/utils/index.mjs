@@ -1,11 +1,5 @@
-import { generateUmlFromTextFile } from "./generateUmlFronTextFile.mjs";
+import { generateUmlFromTextFile } from "./generateUmlFromTextFile.mjs";
 import { pandocBuffer } from "./pandocBuffer.mjs";
 import { remarkBuffer } from "./remarkBuffer.mjs";
-import { writeBufferToFile } from "./writeBufferToFile.mjs";
 
-export {
-	generateUmlFromTextFile,
-	pandocBuffer,
-	remarkBuffer,
-	writeBufferToFile,
-};
+export { generateUmlFromTextFile, pandocBuffer, remarkBuffer };

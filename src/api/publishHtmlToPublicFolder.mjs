@@ -1,26 +1,17 @@
 import { normalize } from "path";
-import {
-	pandocBuffer,
-	remarkBuffer,
-	writeBufferToFile,
-} from "../utils/index.mjs";
+import { writeFile } from "fs/promises";
+import { pandocBuffer, remarkBuffer } from "../utils/index.mjs";
 import { concatenateFilesToBuffer } from "../helpers/index.mjs";
-export async function publishHtmlToPublicFolder(
-	pathWorkingFolder,
-	pathPublicFolder,
-	publishTool = "renark"
-) {
-	// read all files from the working directory
 
+export const publishHtmlToPublicFolder = async (pathWorkingFolder, pathPublicFolder, publishTool = "remark") => {
 	const buffer = await concatenateFilesToBuffer(pathWorkingFolder);
-	if (publishTool === `pandoc`) {
-		await pandocBuffer(buffer, `html`, pathPublicFolder, `index`);
+	
+	if (publishTool === "pandoc") {
+		await pandocBuffer(buffer, "html", pathPublicFolder, "index");
 	} else {
-		const remarkedBuffer = await remarkBuffer(buffer, `html`);
-
-		await writeBufferToFile(
-			normalize(`${pathPublicFolder}/index.html`),
-			remarkedBuffer
-		);
+		const remarkedBuffer = await remarkBuffer(buffer, "html");
+		const outputPath = normalize(`${pathPublicFolder}/index.html`);
+		await writeFile(outputPath, remarkedBuffer);
+		console.log(`File written: ${outputPath}`);
 	}
-}
+};

@@ -1,29 +1,13 @@
-import { concatenateFilesToBuffer } from "./concatenateFilesToBuffer.mjs";
-import { ensureDirectoryExists } from "./ensureDirectoryExists.mjs";
-import { getAllFiles } from "./getAllFiles.mjs";
-import { getConfig } from "./getConfig.mjs";
-import { getFileExtension } from "./getFileExtension.mjs";
-import { getFileName } from "./getFileName.mjs";
-import { getFileNameWithoutExtension } from "./getFileNameWithoutExtension.mjs";
-import { getFolderName } from "./getFolderName.mjs";
-import { getFolderPath } from "./getFolderPath.mjs";
-import { getPathWorkingSpecRootFolder } from "./getPathWorkingSpecRootFolder.mjs";
-import { getPathBeforeSourceFolder } from "./getPathBeforeSourceFolder.mjs";
-import { getPathFiguresFolder } from "./getPathFiguresFolder.mjs";
-import { rewriteFiguresPathsInBuffer } from "./rewriteFiguresPathsInBuffer.mjs";
+// Consolidated modules
+export * from "./paths.mjs";
+export * from "./files.mjs";
 
-export {
-	concatenateFilesToBuffer,
-	ensureDirectoryExists,
-	getAllFiles,
-	getConfig,
-	getFileExtension,
-	getFileName,
-	getFileNameWithoutExtension,
-	getFolderName,
-	getFolderPath,
-	getPathWorkingSpecRootFolder,
-	getPathBeforeSourceFolder,
-	getPathFiguresFolder,
-	rewriteFiguresPathsInBuffer,
-};
+// Existing modules (keep for now)
+export { concatenateFilesToBuffer } from "./concatenateFilesToBuffer.mjs";
+export { getConfig } from "./getConfig.mjs";
+export { rewriteFiguresPathsInBuffer } from "./rewriteFiguresPathsInBuffer.mjs";
+
+// Re-exports from Node.js (for backward compatibility)
+import { parse } from "path";
+export { extname as getFileExtension, basename as getFileName, parse } from "path";
+export const getFileNameWithoutExtension = (path) => parse(path).name;

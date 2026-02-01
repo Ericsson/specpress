@@ -1,0 +1,3 @@
+TestModule DEFINITIONS ::= BEGIN
+  TestType ::= INTEGER
+END
