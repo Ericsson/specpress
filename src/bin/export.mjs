@@ -14,7 +14,7 @@ try {
 	pathRootDirectory = getPathBeforeSourceFolder(pathWorkingDirectory, sourceFolderName);
 } catch (error) {
 	console.error(error.message);
-	process.exit(1); // Exit with a non-zero code to indicate an error
+	process.exit(1);
 }
 
 pathExportDirectory = normalize(`${pathRootDirectory}/export/`);

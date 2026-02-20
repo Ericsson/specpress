@@ -1,11 +1,12 @@
 import { normalize } from "path";
 import { writeFile } from "fs/promises";
 import { pandocBuffer, remarkBuffer } from "../utils/index.mjs";
-import { concatenateFilesToBuffer, getFolderName } from "../helpers/index.mjs";
+import { concatenateFiles } from "../services/file.mjs";
+import { getFolderName } from "../helpers/index.mjs";
 
 export const exportWorkingFolder = async (pathWorkingFolder, pathExportFolder, exportType = "pdf", exportTool = "remark") => {
 	const workingFolderName = await getFolderName(pathWorkingFolder);
-	const sourceBuffer = await concatenateFilesToBuffer(pathWorkingFolder);
+	const sourceBuffer = await concatenateFiles(pathWorkingFolder);
 
 	if (exportTool === "pandoc") {
 		await pandocBuffer(sourceBuffer, exportType, pathExportFolder, workingFolderName);
