@@ -1,5 +1,6 @@
 import chokidar from "chokidar";
-import { extname } from "path";
+import { extname, basename } from "path";
+import { clearConfigCache } from "../helpers/index.mjs";
 
 const SPEC_EXTENSIONS = [".md", ".asn", ".json"];
 const UML_EXTENSIONS = [".puml", ".txt"];
@@ -16,9 +17,13 @@ export const watchWorkingFolder = (pathWorkingFolder, pathPublicFolder, pathFigu
 
 	watcher.on("change", async (pathFile) => {
 		const ext = extname(pathFile);
+		const fileName = basename(pathFile);
 		console.log(`File changed: ${pathFile}`);
 
-		if (SPEC_EXTENSIONS.includes(ext)) {
+		if (fileName === "sp.config.json") {
+			clearConfigCache();
+			console.log("Config cache cleared");
+		} else if (SPEC_EXTENSIONS.includes(ext)) {
 			clearTimeout(publishTimeout);
 			publishTimeout = setTimeout(async () => {
 				const { publishHtmlToPublicFolder } = await import("./publishHtmlToPublicFolder.mjs");
