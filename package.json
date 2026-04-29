@@ -1,6 +1,6 @@
 {
 	"name": "specpress",
-	"version": "2.1.1",
+	"version": "3.0.0",
 	"description": "Export PDF and/or DOCX files from a subset of Markdown, ASN.1 and JSON files",
 	"bin": {
 		"sp_export": "./src/bin/export.mjs",
@@ -10,10 +10,70 @@
 		"sp_publish": "./src/bin/publish.mjs",
 		"sp_start": "./src/bin/start.mjs",
 		"sp_serve": "./src/bin/serve.mjs",
-		"sp_watch": "./src/bin/watch.mjs"
+		"sp_watch": "./src/bin/watch.mjs",
+		"specpress-export-html": "./lib/cli/export-html.js",
+		"specpress-export-docx": "./lib/cli/export-docx.js"
 	},
 	"main": "index.mjs",
 	"type": "module",
+	"exports": {
+		".": {
+			"import": "./index.mjs",
+			"require": "./lib/index.js"
+		},
+		"./lib": {
+			"require": "./lib/index.js"
+		},
+		"./lib/common/specProcessor": {
+			"require": "./lib/common/specProcessor.js"
+		},
+		"./lib/common/bullets": {
+			"require": "./lib/common/bullets.js"
+		},
+		"./lib/common/buildSpanMap": {
+			"require": "./lib/common/buildSpanMap.js"
+		},
+		"./lib/common/latexHelpers": {
+			"require": "./lib/common/latexHelpers.js"
+		},
+		"./lib/common/gitHelpers": {
+			"require": "./lib/common/gitHelpers.js"
+		},
+		"./lib/md2html/md2html": {
+			"require": "./lib/md2html/md2html.js"
+		},
+		"./lib/md2html/handlers/asnHandler": {
+			"require": "./lib/md2html/handlers/asnHandler.js"
+		},
+		"./lib/md2html/handlers/jsonTableHandler": {
+			"require": "./lib/md2html/handlers/jsonTableHandler.js"
+		},
+		"./lib/md2docx/md2docx": {
+			"require": "./lib/md2docx/md2docx.js"
+		},
+		"./lib/md2docx/coverPage": {
+			"require": "./lib/md2docx/coverPage.js"
+		},
+		"./lib/md2docx/styles/docxStyles": {
+			"require": "./lib/md2docx/styles/docxStyles.js"
+		},
+		"./lib/md2docx/handlers/inlineRunBuilder": {
+			"require": "./lib/md2docx/handlers/inlineRunBuilder.js"
+		},
+		"./lib/md2docx/handlers/asnHandler": {
+			"require": "./lib/md2docx/handlers/asnHandler.js"
+		},
+		"./lib/md2docx/handlers/jsonTableHandler": {
+			"require": "./lib/md2docx/handlers/jsonTableHandler.js"
+		},
+		"./lib/md2docx/handlers/latexEquationHandler": {
+			"require": "./lib/md2docx/handlers/latexEquationHandler.js"
+		},
+		"./lib/md2docx/handlers/mermaidHandler": {
+			"require": "./lib/md2docx/handlers/mermaidHandler.js"
+		},
+		"./lib/css/*": "./lib/css/*"
+	},
 	"scripts": {
 		"test": "node tests/run.mjs",
 		"test:watch": "node --watch tests/run.mjs"
@@ -33,6 +93,15 @@
 	"author": "Serban Purge <serban.purge@ericsson.com>",
 	"license": "MIT",
 	"dependencies": {
+		"docx": "^9.6.1",
+		"katex": "^0.16.38",
+		"markdown-it": "^14.1.1",
+		"markdown-it-emoji": "^2.0.2",
+		"markdown-it-task-lists": "^2.1.1",
+		"markdown-it-texmath": "^1.0.0",
+		"mathml2omml": "^0.5.0"
+	},
+	"optionalDependencies": {
 		"chokidar": "^4.0.3",
 		"http-server": "^14.1.1",
 		"node-pandoc": "^0.3.0",
