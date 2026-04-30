@@ -1,0 +1,29 @@
+# .gitlab-ci.yml — Build HTML from markdown specs and publish via GitLab Pages.
+#
+# Copy this file into your specification repository and configure the
+# variables below (Settings > CI/CD > Variables) or override them here.
+#
+# The rendered HTML is available at:
+#   https://<namespace>.pages.<gitlab-host>/<project>/
+
+variables:
+  SPEC_INPUT_DIR: "spec"          # path to markdown files, relative to repo root
+  SPECPRESS_REPO: "https://github.com/Ericsson/specpress.git"
+  SPECPRESS_REF: "main"
+
+stages:
+  - pages
+
+pages:
+  stage: pages
+  image: node:20-alpine
+  script:
+    - apk add --no-cache git
+    - git clone --depth 1 --branch $SPECPRESS_REF $SPECPRESS_REPO /tmp/specpress
+    - cd /tmp/specpress && npm ci --production && cd -
+    - node /tmp/specpress/lib/cli/export-html.js "$SPEC_INPUT_DIR" public
+  artifacts:
+    paths:
+      - public
+  only:
+    - main

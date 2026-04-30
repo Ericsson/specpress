@@ -1,0 +1,40 @@
+# .gitlab-ci.yml — Build DOCX from markdown specs.
+#
+# Copy this file into your specification repository and configure the
+# variables below (Settings > CI/CD > Variables) or override them here.
+#
+# The rendered DOCX is available as a downloadable job artifact.
+
+variables:
+  SPEC_INPUT_DIR: "spec"          # path to markdown files, relative to repo root
+  SPEC_ROOT: "spec"               # specification root for section numbering (set to "" to disable)
+  DOCX_OUTPUT: "output/spec.docx" # output file path, relative to repo root
+  SPECPRESS_REPO: "https://github.com/Ericsson/specpress.git"
+  SPECPRESS_REF: "main"
+
+stages:
+  - build
+
+export-docx:
+  stage: build
+  image: node:20-alpine
+  before_script:
+    # Chromium is needed for mermaid diagram rendering (headless browser fallback)
+    - apk add --no-cache git chromium
+    - export CHROME_BIN=$(which chromium-browser)
+  script:
+    - git clone --depth 1 --branch $SPECPRESS_REF $SPECPRESS_REPO /tmp/specpress
+    - cd /tmp/specpress && npm ci --production && cd -
+    - mkdir -p $(dirname "$DOCX_OUTPUT")
+    - >
+      node /tmp/specpress/lib/cli/export-docx.js
+      "$SPEC_INPUT_DIR"
+      "$DOCX_OUTPUT"
+      ${SPEC_ROOT:+--spec-root "$SPEC_ROOT"}
+  artifacts:
+    paths:
+      - $DOCX_OUTPUT
+    expire_in: 30 days
+  only:
+    - main
+    - tags
