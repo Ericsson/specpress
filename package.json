@@ -75,8 +75,8 @@
 		"./lib/css/*": "./lib/css/*"
 	},
 	"scripts": {
-		"test": "node tests/run.mjs",
-		"test:watch": "node --watch tests/run.mjs"
+		"test": "node scripts/run-tests.js",
+		"test:watch": "node --watch scripts/run-tests.js"
 	},
 	"repository": {
 		"type": "git",

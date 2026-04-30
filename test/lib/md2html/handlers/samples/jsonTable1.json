@@ -1,0 +1,13 @@
+{
+    "columns": [
+        { "key": "cmd", "name": "TPC Command Field", "align": "center" },
+        { "key": "acc", "name": "Accumulated $\\delta_{PUSCH,b,f,c}$ or $\\delta_{SRS,b,f,c}$ [dB]", "align": "left" },
+        { "key": "abs", "name": "Absolute $\\delta_{PUSCH,b,f,c}$ or $\\delta_{SRS,b,f,c}$ [dB]", "align": "right" }
+    ],
+    "rows": [
+        { "cmd": 0, "acc": -1, "abs": -4 },
+        { "cmd": 1, "acc": 0, "abs": "t**es**t" },
+        { "cmd": 2, "acc": "$\\delta_{PUSCH,b,f,c}$", "abs": "<" },
+        { "cmd": 3, "acc": "^", "abs": "^" }
+    ]
+}
