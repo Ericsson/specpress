@@ -1,6 +1,6 @@
 ﻿# SpecPress
 
-SpecPress is a library for converting 3GPP specifications â€” written as a tree of Markdown, JSON, and ASN.1 files â€” into consistent HTML or DOCX documents that match the look and feel of traditional 3GPP Word specifications.
+SpecPress is a library for converting 3GPP specifications — written as a tree of Markdown, JSON, and ASN.1 files — into consistent HTML or DOCX documents that match the look and feel of traditional 3GPP Word specifications.
 
 The core library lives in the `lib/` directory and provides a programmatic API for:
 
@@ -107,14 +107,14 @@ SpecPress can derive section numbers automatically from the folder and file hier
 The specification is organized as a tree of numbered folders and files:
 
 ```txt
-spec/                          â† specificationRootPath
+spec/                          ← specificationRootPath
   01 Scope/
-    00 Scope.md                â† section 1 (from folder "01")
+    00 Scope.md                ← section 1 (from folder "01")
   02 References/
-    00 References.md           â† section 2
+    00 References.md           ← section 2
   03 Definitions/
-    01 Terms.md                â† section 3.1
-    02 Abbreviations.md        â† section 3.2
+    01 Terms.md                ← section 3.1
+    02 Abbreviations.md        ← section 3.2
 ```
 
 Each folder and file name starts with a number. The numbers are collected along the path from the spec root to the file, skipping zeros (which denote "this file provides the heading for its parent folder"). The collected numbers form the **derived section number**.
@@ -135,9 +135,9 @@ Inside each markdown file, headings use **x-placeholders** instead of hardcoded 
 
 The `x` components are replaced by the derived section number at render time. The number of `x` components must match the depth of the derived section number. For example, in a file with derived number `3.2`:
 
-- `## x.x Abbreviations` â†’ `## 3.2 Abbreviations`
-- `### x.x.1 General` â†’ `### 3.2.1 General`
-- `### x.x.2 Specific` â†’ `### 3.2.2 Specific`
+- `## x.x Abbreviations` → `## 3.2 Abbreviations`
+- `### x.x.1 General` → `### 3.2.1 General`
+- `### x.x.2 Specific` → `### 3.2.2 Specific`
 
 Headings without x-placeholders and without leading numbers are left unchanged (unnumbered headings). Headings with manually written section numbers (e.g. `## 3.2 Abbreviations`) produce an **E.R.R.O.R** marker to flag the inconsistency.
 
@@ -167,10 +167,10 @@ Rendered SVG files are stored in a `cached/` directory as a sibling of the speci
 
 ```txt
 repo/
-  spec/           â† specificationRootPath
+  spec/           ← specificationRootPath
     03 Building blocks/
       05 Mermaid.md
-  cached/          â† SVG cache (sibling of spec)
+  cached/          ← SVG cache (sibling of spec)
     a1b2c3d4...svg
     e5f6a7b8...svg
 ```
@@ -179,9 +179,9 @@ repo/
 
 Each SVG file is named by the SHA-256 hash of the mermaid source code combined with the mermaid configuration. This means:
 
-- **Same source â†’ same file** â€” unchanged diagrams produce identical SVG bytes across exports, eliminating false tracked changes in DOCX DIFF comparisons.
-- **Fast re-exports** â€” cached diagrams are served from disk without re-rendering.
-- **Shareable via git** â€” the `cached/` directory should be committed to the repository. Colleagues who clone the repo get the pre-rendered SVGs and don't need to re-render them.
+- **Same source → same file** — unchanged diagrams produce identical SVG bytes across exports, eliminating false tracked changes in DOCX DIFF comparisons.
+- **Fast re-exports** — cached diagrams are served from disk without re-rendering.
+- **Shareable via git** — the `cached/` directory should be committed to the repository. Colleagues who clone the repo get the pre-rendered SVGs and don't need to re-render them.
 
 #### Automatic cleanup
 
@@ -191,30 +191,30 @@ After each export, SpecPress scans all markdown files in the spec root for merma
 
 When running from the command line (outside VS Code), mermaid diagrams are rendered using a headless Chromium-based browser (Edge or Chrome). SpecPress auto-detects the browser from common installation paths. If no browser is found, mermaid diagrams are skipped and a placeholder is inserted.
 
-## Usage (legacy tools)
+## Local Development Tools
 
-The specpress repository also contains standalone tools for local development workflows. These are outside the `lib/` directory and are being updated.
+The specpress repository also contains standalone tools for local development workflows via the `src/` directory.
 
-### WYSIWYG - like experience while working on your specifications
+### WYSIWYG-like experience while working on your specifications
 
-Specpress enables you to have a "what you see is what you get" - like experience when editing your specifications by displaying the specification as a webpage. For doing so, run the `npx sp_start` command in the terminal and specpress will convert and concatenate the specification files from your working directory into a single `hrml` file which is published on a local `http server`. The resulting web page can be displayed in any browser that points at the `http://localhost::8080` address.
+SpecPress enables you to have a "what you see is what you get"-like experience when editing your specifications by displaying the specification as a webpage. Run the `npx sp_start` command in the terminal and SpecPress will convert and concatenate the specification files from your working directory into a single HTML file which is published on a local http server. The resulting web page can be displayed in any browser that points at `http://localhost:8080`.
 
 ```
 npx sp_start
 ```
 
-The `sp_strat` command is equivalent to running in parallel the `sp_pubish`, `sp_watch` and `sp_serve` commands described below.
+The `sp_start` command is equivalent to running in parallel the `sp_publish`, `sp_watch` and `sp_serve` commands described below.
 
 ### Display the specification as a web page
 
 Execute the following commands to display your specification as a webpage on your local http server:
 
 ```
-#create the /mySpecifications/public/index.html file
+# create the /mySpecifications/public/index.html file
 npx sp_publish
 
 # start the http server from the /mySpecifications/public folder
-# the server is accessible at http://lcalhost:8080
+# the server is accessible at http://localhost:8080
 npx sp_serve
 ```
 
@@ -226,57 +226,41 @@ npx sp_watch
 
 The `sp_watch` command will:
 
--   watch for changes in your specification's source files `[".asn", ".json", ".md"]` and update the `index.html` file according to your changes,
--   watch for changes in your UML sequence diagrams source files `[".puml", ".txt"]` and generate the corresponding PNG files in the `/mySpecifications/src/38423/assets/figures` folder
+- watch for changes in your specification's source files `[".asn", ".json", ".md"]` and update the `index.html` file according to your changes,
+- watch for changes in your UML sequence diagrams source files `[".puml", ".txt"]` and generate the corresponding PNG files in the `/mySpecifications/src/38423/assets/figures` folder
 
 ### Generate UML diagrams from text files using PlantUML
 
-Specpress enables you to automatically generate `.png` files containing UML diagrams using as an input a text file containing a textual description of the UML diagram as presented in the example below:
+SpecPress enables you to automatically generate `.png` files containing UML diagrams using as an input a text file containing a textual description of the UML diagram as presented in the example below:
 
 ```
-
 #/mySpecifications/src/38423/example.txt
 @startuml
 Alice -> Bob: Authentication Request
 Boby --> Alice: Authentication Response
 @enduml
-
 ```
 
-The `.png` files are saved in the specification's subfolder indicated in the `sp.config.json` files.
+The `.png` files are saved in the specification's subfolder indicated in the `sp.config.json` file.
 
 ```
-
-# generale .png files for all the .txt files in the working folder
+# generate .png files for all the .txt files in the working folder
 npx sp_generateUML
 
-# generale .png file for a specific .txt file in the working folder
+# generate .png file for a specific .txt file in the working folder
 npx sp_generateUML-file ./example.txt
-
 ```
 
-### Export a .docx|.html|.pdf file
+### Export a .docx or .html file
 
-Specpress enables you to export a file which contains all the specification files from the working folder. The exported file will be saved in the `/mySpecifications/export` folder.
+SpecPress enables you to export a file which contains all the specification files from the working folder. The exported file will be saved in the `/mySpecifications/export` folder.
 
 ```
-# export a pdf file
-npx sp_export pdf
-
 # export a docx file
 npx sp_export docx
 
-# export a html file
+# export an html file
 npx sp_export html
-
-# export a pdf file using pandoc
-npx sp_export pdf pandoc
-
-# export a docx file using pandoc
-npx sp_export docx pandoc
-
-# export a html file using pandoc
-npx sp_export html pandoc
 ```
 
 ## Contributing
@@ -291,6 +275,8 @@ The `lib/` directory is organized by concern:
 - **`cli/`** — Thin command-line wrappers around the library classes.
 - **`css/`** — Default stylesheet and mermaid configuration.
 
+The `src/` directory provides local development tools (`sp_start`, `sp_publish`, `sp_watch`, `sp_export`, etc.) that delegate to the `lib/` converters for all markdown-to-HTML and markdown-to-DOCX processing.
+
 Key principles:
 
 - **Single responsibility** — each module does one thing. Handlers are isolated and testable independently.
@@ -301,6 +287,7 @@ Key principles:
 ### Coding style
 
 - **CommonJS** modules (`require()` / `module.exports`) inside `lib/`
+- **ES modules** (`import` / `export`) inside `src/`
 - **2-space indentation**, no semicolons
 - **Single quotes** for strings, template literals for HTML/multi-line
 - **camelCase** for functions and variables, **PascalCase** for classes

@@ -26,7 +26,7 @@ export const watchWorkingFolder = (pathWorkingFolder, pathPublicFolder, pathFigu
 		} else if (SPEC_EXTENSIONS.includes(ext)) {
 			clearTimeout(publishTimeout);
 			publishTimeout = setTimeout(async () => {
-				const { publishHtmlToPublicFolder } = await import("./publishHtmlToPublicFolder.mjs");
+				const { publishHtmlToPublicFolder } = await import("./index.mjs");
 				await publishHtmlToPublicFolder(pathWorkingFolder, pathPublicFolder);
 			}, DEBOUNCE_MS);
 		} else if (UML_EXTENSIONS.includes(ext)) {
