@@ -1,6 +1,6 @@
 {
 	"name": "specpress",
-	"version": "3.0.3",
+	"version": "3.0.4",
 	"description": "Export PDF and/or DOCX files from a subset of Markdown, ASN.1 and JSON files",
 	"bin": {
 		"sp_export": "./src/bin/export.mjs",
