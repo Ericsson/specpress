@@ -83,7 +83,7 @@ The markdown-to-HTML/DOCX conversion goes beyond regular markdown rendering. The
 - A paragraph containing **{TableOfContent(N-M)}** generates a clickable table of contents covering heading levels N through M in both HTML and DOCX.
 - Semi-automated **section numbering** based on leading numbers in folder- and file names. See [Section Numbering](#section-numbering) for a detailed description.
 - A level-1 heading starting with "**Annex**" is treated as an Annex heading with a line break after the first colon (Heading8 style in DOCX).
-- An unordered **bullet list** in markdown is converted into a Bx-Style list in HTML and DOCX. I.e., it is assumed that the first "word" in the bullet text is the "bullet character". The script extracts those one or more first characters and declares them accordingly in the corresponding "\<li\>" statements in the generated HTML. Furthermore, the CSS for the corresponding *li*/*ul* styles is adjusted so that bullet lists are indented properly. This scheme allows using various bullets styles (e.g. -, 1>, 2>, [1], [2], ...) as it used to be done with the traditional B1, B2, B3... styles in DOCX.
+- An unordered **bullet list** in markdown is converted into a Bx-Style list in HTML and DOCX. I.e., it is assumed that the first "word" in the bullet text is the "bullet character". The script extracts those one or more first characters and declares them accordingly in the corresponding "\<li\>" statements in the generated HTML. Furthermore, the CSS for the corresponding _li_/_ul_ styles is adjusted so that bullet lists are indented properly. This scheme allows using various bullets styles (e.g. -, 1>, 2>, [1], [2], ...) as it used to be done with the traditional B1, B2, B3... styles in DOCX.
 - **Images** are embedded in DOCX with their native aspect ratio preserved. Large images are scaled to fit the page width; small images are not upscaled beyond 125 DPI to avoid pixelation.
 - A fenced code-block with the content **mermaid** is interpreted as a graph and rendered as a figure.
 - **JsonTable** is a table format where columns and rows are defined in JSON (in separate JSON files linked into MD files or embedded directly into a MD code fence). The JsonTable supports markdown formatting in cells (including equations, line-breaks, ...) as well as horizontally and vertically merged cells.
@@ -191,13 +191,80 @@ After each export, SpecPress scans all markdown files in the spec root for merma
 
 When running from the command line (outside VS Code), mermaid diagrams are rendered using a headless Chromium-based browser (Edge or Chrome). SpecPress auto-detects the browser from common installation paths. If no browser is found, mermaid diagrams are skipped and a placeholder is inserted.
 
-## Local Development Tools
+## Contributing
 
-The specpress repository also contains standalone tools for local development workflows via the `src/` directory.
+### Architecture
+
+The `lib/` directory is organized by concern:
+
+- **`common/`** — Shared utilities (paragraph classification, section numbering, file collection, bullet parsing, git helpers). No dependency on markdown-it or docx.
+- **`md2html/`** — HTML renderer built on markdown-it. `md2html.js` is the main class; `handlers/` contains format-specific logic (ASN.1 highlighting, JsonTable).
+- **`md2docx/`** — DOCX converter built on the docx library. `md2docx.js` walks markdown-it tokens and emits docx elements; `handlers/` contains specialized converters (equations, mermaid, JsonTable, ASN.1); `styles/` defines 3GPP paragraph styles.
+- **`cli/`** — Thin command-line wrappers around the library classes.
+- **`css/`** — Default stylesheet and mermaid configuration.
+
+The `src/` directory provides local development tools (`sp_start`, `sp_publish`, `sp_watch`, `sp_export`, etc.) that delegate to the `lib/` converters for all markdown-to-HTML and markdown-to-DOCX processing.
+
+Key principles:
+
+- **Single responsibility** — each module does one thing. Handlers are isolated and testable independently.
+- **No VS Code dependency** — the entire `lib/` directory must run in plain Node.js (CLI, CI, tests). VS Code integration lives exclusively in the [SpecPressExt](https://github.com/Ericsson/SpecPressExt) repository.
+- **Shared classification** — paragraph type detection (`classifyParagraph`) is defined once in `common/specProcessor.js` and used by both HTML and DOCX paths, ensuring consistent behavior.
+- **Injected dependencies** — renderers, image resolvers, and mermaid render functions are passed in via constructor options or function parameters, never hardcoded.
+
+### Coding style
+
+- **CommonJS** modules (`require()` / `module.exports`) inside `lib/`
+- **ES modules** (`import` / `export`) inside `src/`
+- **2-space indentation**, no semicolons
+- **Single quotes** for strings, template literals for HTML/multi-line
+- **camelCase** for functions and variables, **PascalCase** for classes
+- Import dependencies at the top, grouped: Node.js built-ins, then npm packages, then local modules
+
+### Anti-patterns to avoid
+
+- Duplicating classification logic between HTML and DOCX paths — use `common/specProcessor.js`
+- Adding VS Code or editor-specific code to `lib/` — that belongs in SpecPressExt
+- Hardcoded path separators — use `path.join()`
+- Synchronous file I/O in async code paths (mermaid rendering, DOCX export) — use async where the caller expects it
+
+## Local 3GPP Specifications Development Tools
+
+The specpress repository also contains standalone tools for local 3GPP specifications development workflows via the `src/` directory.
 
 ### WYSIWYG-like experience while working on your specifications
 
-SpecPress enables you to have a "what you see is what you get"-like experience when editing your specifications by displaying the specification as a webpage. Run the `npx sp_start` command in the terminal and SpecPress will convert and concatenate the specification files from your working directory into a single HTML file which is published on a local http server. The resulting web page can be displayed in any browser that points at `http://localhost:8080`.
+SpecPress enables you to have a "what you see is what you get"-like experience when editing your specifications by displaying the specification as a webpage.
+
+Follow the instructions below to start using the 3GPP specifications local development tools provided by specpress:
+
+```
+# create a new folder
+mkdir myPress
+
+# Move into the folder
+cd myPress
+
+# Initialize a new Node.js project
+npm init
+
+# install specpress as a dev dependency of your project
+npm install specpress --save-dev
+
+# Initialize specpress
+npx sp_init
+
+# Move into the source folder which will host your 3GPP specification
+cd src
+
+# clone inhere a git repository containing a 3GPP specification
+git clone https://forge.3gpp.org/rep/fs_6gspecs_new/ericsson_multifiletypes_onem2m_example.git
+
+# Move into the local directory of your specification or a sub folder of it and start using specpress
+cd ericsson_multifiletypes_onem2m_example
+```
+
+Run the `npx sp_start` command in the terminal and SpecPress will convert and concatenate the specification files from your working directory into a single HTML file which is published on a local http server. The resulting web page can be displayed in any browser that points at `http://localhost:8080`.
 
 ```
 npx sp_start
@@ -262,43 +329,6 @@ npx sp_export docx
 # export an html file
 npx sp_export html
 ```
-
-## Contributing
-
-### Architecture
-
-The `lib/` directory is organized by concern:
-
-- **`common/`** — Shared utilities (paragraph classification, section numbering, file collection, bullet parsing, git helpers). No dependency on markdown-it or docx.
-- **`md2html/`** — HTML renderer built on markdown-it. `md2html.js` is the main class; `handlers/` contains format-specific logic (ASN.1 highlighting, JsonTable).
-- **`md2docx/`** — DOCX converter built on the docx library. `md2docx.js` walks markdown-it tokens and emits docx elements; `handlers/` contains specialized converters (equations, mermaid, JsonTable, ASN.1); `styles/` defines 3GPP paragraph styles.
-- **`cli/`** — Thin command-line wrappers around the library classes.
-- **`css/`** — Default stylesheet and mermaid configuration.
-
-The `src/` directory provides local development tools (`sp_start`, `sp_publish`, `sp_watch`, `sp_export`, etc.) that delegate to the `lib/` converters for all markdown-to-HTML and markdown-to-DOCX processing.
-
-Key principles:
-
-- **Single responsibility** — each module does one thing. Handlers are isolated and testable independently.
-- **No VS Code dependency** — the entire `lib/` directory must run in plain Node.js (CLI, CI, tests). VS Code integration lives exclusively in the [SpecPressExt](https://github.com/Ericsson/SpecPressExt) repository.
-- **Shared classification** — paragraph type detection (`classifyParagraph`) is defined once in `common/specProcessor.js` and used by both HTML and DOCX paths, ensuring consistent behavior.
-- **Injected dependencies** — renderers, image resolvers, and mermaid render functions are passed in via constructor options or function parameters, never hardcoded.
-
-### Coding style
-
-- **CommonJS** modules (`require()` / `module.exports`) inside `lib/`
-- **ES modules** (`import` / `export`) inside `src/`
-- **2-space indentation**, no semicolons
-- **Single quotes** for strings, template literals for HTML/multi-line
-- **camelCase** for functions and variables, **PascalCase** for classes
-- Import dependencies at the top, grouped: Node.js built-ins, then npm packages, then local modules
-
-### Anti-patterns to avoid
-
-- Duplicating classification logic between HTML and DOCX paths — use `common/specProcessor.js`
-- Adding VS Code or editor-specific code to `lib/` — that belongs in SpecPressExt
-- Hardcoded path separators — use `path.join()`
-- Synchronous file I/O in async code paths (mermaid rendering, DOCX export) — use async where the caller expects it
 
 ## Repository
 
