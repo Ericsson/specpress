@@ -7,6 +7,7 @@ import {
 	getPathBeforeSourceFolder,
 	getConfig,
 } from "../helpers/index.mjs";
+
 const pathWorkingDirectory = normalize(process.cwd());
 let pathRootDirectory, pathExportDirectory;
 try {
@@ -19,15 +20,8 @@ try {
 
 pathExportDirectory = normalize(`${pathRootDirectory}/export/`);
 await ensureDirectoryExists(pathExportDirectory);
-const args = process.argv.slice(2);
-const exportConfiguration = {
-	exportType: { html: "html", docx: "docx", pdf: "pdf" },
-	exportTool: { pandoc: "pandoc", remark: "remark" },
-};
 
-await exportWorkingFolder(
-	pathWorkingDirectory,
-	pathExportDirectory,
-	exportConfiguration.exportType[args[0]],
-	exportConfiguration.exportTool[args[1]]
-);
+const args = process.argv.slice(2);
+const exportType = args[0] === "html" ? "html" : "docx";
+
+await exportWorkingFolder(pathWorkingDirectory, pathExportDirectory, exportType);

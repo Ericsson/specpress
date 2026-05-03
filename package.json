@@ -105,11 +105,6 @@
 	"optionalDependencies": {
 		"chokidar": "^4.0.3",
 		"http-server": "^14.1.1",
-		"node-pandoc": "^0.3.0",
-		"node-plantuml": "^0.9.0",
-		"remark": "^15.0.1",
-		"remark-docx": "^0.1.6",
-		"remark-html": "^16.0.1",
-		"remark-pdf": "^0.0.14"
+		"node-plantuml": "^0.9.0"
 	}
 }
