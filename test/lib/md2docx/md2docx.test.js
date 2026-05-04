@@ -437,6 +437,47 @@ async function run() {
     assert.ok(xml.includes('81B16B'), 'should have green color')
   })
 
+  // updateFields option
+
+  console.log('\\nupdateFields option')
+
+  await test('updateFields defaults to true in settings.xml', async () => {
+    const converter = new MarkdownToDocxConverter(null, '')
+    const tmp = os.tmpdir()
+    const ts = Date.now() + '_' + Math.random().toString(36).slice(2)
+    const mdPath = path.join(tmp, `.~uf_true_${ts}.md`)
+    const docxPath = path.join(tmp, `.~uf_true_${ts}.docx`)
+    fs.writeFileSync(mdPath, '# Hello\\n')
+    try {
+      await converter.convert(mdPath, docxPath, tmp)
+      const zip = await JSZip.loadAsync(fs.readFileSync(docxPath))
+      const settings = await zip.file('word/settings.xml').async('string')
+      assert.ok(settings.includes('updateFields'), 'should contain updateFields')
+      assert.ok(!settings.includes('updateFields w:val="false"'), 'updateFields should not have val=false')
+    } finally {
+      if (fs.existsSync(mdPath)) fs.unlinkSync(mdPath)
+      if (fs.existsSync(docxPath)) fs.unlinkSync(docxPath)
+    }
+  })
+
+  await test('updateFields: false omits updateFields from settings.xml', async () => {
+    const converter = new MarkdownToDocxConverter(null, '', null, null, { updateFields: false })
+    const tmp = os.tmpdir()
+    const ts = Date.now() + '_' + Math.random().toString(36).slice(2)
+    const mdPath = path.join(tmp, `.~uf_false_${ts}.md`)
+    const docxPath = path.join(tmp, `.~uf_false_${ts}.docx`)
+    fs.writeFileSync(mdPath, '# Hello\\n')
+    try {
+      await converter.convert(mdPath, docxPath, tmp)
+      const zip = await JSZip.loadAsync(fs.readFileSync(docxPath))
+      const settings = await zip.file('word/settings.xml').async('string')
+      assert.ok(!settings.includes('updateFields'), 'should not contain updateFields')
+    } finally {
+      if (fs.existsSync(mdPath)) fs.unlinkSync(mdPath)
+      if (fs.existsSync(docxPath)) fs.unlinkSync(docxPath)
+    }
+  })
+
   console.log(`\n${passed} passed, ${failed} failed`)
   process.exit(failed > 0 ? 1 : 0)
 }
