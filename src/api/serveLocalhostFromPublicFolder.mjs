@@ -5,7 +5,8 @@ export function serveLocalhostFromPublicFolder(
 	pathRootFolder,
 	pathPublicFolder
 ) {
-	const npmCommand = `${pathRootFolder}/node_modules/specpress/node_modules/.bin/http-server ${pathPublicFolder} -c-1 -p 8080`;
+	const httpServerBin = normalize(`${pathRootFolder}/node_modules/specpress/node_modules/.bin/http-server`);
+	const npmCommand = `"${httpServerBin}" "${pathPublicFolder}" -c-1 -p 8080`;
 	exec(npmCommand, (error, stdout, stderr) => {
 		if (error) {
 			console.error(`Error: ${error.message}`);
