@@ -1,10 +1,10 @@
 // index.mjs
-import { exportWorkingFolder } from "./api/exportWorkingFolder.mjs";
-import { generateUmlForFile } from "./api/generateUmlForFile.mjs";
-import { generateUmlForFolder } from "./api/generateUmlForFolder.mjs";
-import { publishHtmlToPublicFolder } from "./api/publishHtmlToPublicFolder.mjs";
-import { serveLocalhostFromPublicFolder } from "./api/serveLocalhostFromPublicFolder.mjs";
-import { watchWorkingFolder } from "./api/watchWorkingFolder.mjs";
+import { exportWorkingFolder } from "./src/api/index.mjs";
+import { generateUmlForFile } from "./src/api/index.mjs";
+import { generateUmlForFolder } from "./src/api/index.mjs";
+import { publishHtmlToPublicFolder } from "./src/api/index.mjs";
+import { serveLocalhostFromPublicFolder } from "./src/api/index.mjs";
+import { watchWorkingFolder } from "./src/api/index.mjs";
 
 export {
 	exportWorkingFolder,

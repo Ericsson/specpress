@@ -7,6 +7,7 @@ import {
 	getPathBeforeSourceFolder,
 	getConfig,
 } from "../helpers/index.mjs";
+
 const pathWorkingDirectory = normalize(process.cwd());
 let pathRootDirectory, pathPublicDirectory;
 try {
@@ -14,16 +15,10 @@ try {
 	pathRootDirectory = getPathBeforeSourceFolder(pathWorkingDirectory, sourceFolderName);
 } catch (error) {
 	console.error(error.message);
-	process.exit(1); // Exit with a non-zero code to indicate an error
+	process.exit(1);
 }
 
 pathPublicDirectory = normalize(`${pathRootDirectory}/public`);
 await ensureDirectoryExists(pathPublicDirectory);
 
-const args = process.argv.slice(2);
-const publishTool = { pandoc: "pandoc", remark: "remark" };
-publishHtmlToPublicFolder(
-	pathWorkingDirectory,
-	pathPublicDirectory,
-	publishTool[args[0]]
-);
+await publishHtmlToPublicFolder(pathWorkingDirectory, pathPublicDirectory);

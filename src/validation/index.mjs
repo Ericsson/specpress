@@ -17,17 +17,9 @@ export function validatePathExists(path, name = 'path') {
 }
 
 export function validateExportType(type) {
-	const valid = ['pdf', 'docx', 'html'];
+	const valid = ['docx', 'html'];
 	if (!valid.includes(type)) {
 		throw new ValidationError(`Invalid export type: ${type}. Valid: ${valid.join(', ')}`);
 	}
 	return type;
-}
-
-export function validateExportTool(tool) {
-	const valid = ['remark', 'pandoc'];
-	if (!valid.includes(tool)) {
-		throw new ValidationError(`Invalid export tool: ${tool}. Valid: ${valid.join(', ')}`);
-	}
-	return tool;
 }

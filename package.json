@@ -1,6 +1,6 @@
 {
 	"name": "specpress",
-	"version": "3.0.0",
+	"version": "3.0.5",
 	"description": "Export PDF and/or DOCX files from a subset of Markdown, ASN.1 and JSON files",
 	"bin": {
 		"sp_export": "./src/bin/export.mjs",
@@ -76,7 +76,8 @@
 	},
 	"scripts": {
 		"test": "node scripts/run-tests.js",
-		"test:watch": "node --watch scripts/run-tests.js"
+		"test:watch": "node --watch scripts/run-tests.js",
+		"release": "npm version patch && git push && git push --tags"
 	},
 	"repository": {
 		"type": "git",
@@ -104,11 +105,6 @@
 	"optionalDependencies": {
 		"chokidar": "^4.0.3",
 		"http-server": "^14.1.1",
-		"node-pandoc": "^0.3.0",
-		"node-plantuml": "^0.9.0",
-		"remark": "^15.0.1",
-		"remark-docx": "^0.1.6",
-		"remark-html": "^16.0.1",
-		"remark-pdf": "^0.0.14"
+		"node-plantuml": "^0.9.0"
 	}
 }
