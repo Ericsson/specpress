@@ -52,7 +52,13 @@
 			"require": "./lib/md2docx/md2docx.js"
 		},
 		"./lib/md2docx/coverPage": {
-			"require": "./lib/md2docx/coverPage.js"
+			"require": "./lib/md2docx/frontPage.js"
+		},
+		"./lib/md2docx/frontPage": {
+			"require": "./lib/md2docx/frontPage.js"
+		},
+		"./lib/md2html/frontPage": {
+			"require": "./lib/md2html/frontPage.js"
 		},
 		"./lib/md2docx/styles/docxStyles": {
 			"require": "./lib/md2docx/styles/docxStyles.js"
