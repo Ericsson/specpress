@@ -284,7 +284,7 @@ test('does not resolve images when no resolveImageUri', () => {
   assert.ok(result.includes('src="img.png"'))
 })
 
-test('does not resolve images when forPreview is false', () => {
+test('does not resolve images when file does not exist', () => {
   const p = new Md2Html({ resolveImageUri: () => 'resolved' })
   const result = p.renderBody('![alt](img.png)', false, '/some/dir')
   assert.ok(result.includes('src="img.png"'))
