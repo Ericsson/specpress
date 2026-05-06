@@ -37,10 +37,11 @@
     "gitBranchLabel6": "#ffffff",
     "gitBranchLabel7": "#000000"
   },
+  "themeCSS": ".actor { font-size: 14px !important; } .messageText { font-size: 13px !important; } .noteText { font-size: 13px !important; } .loopText { font-size: 13px !important; } .labelText { font-size: 13px !important; }",
   "flowchart": {
-    "padding": 0,
+    "padding": 8,
     "nodeSpacing": 15,
-    "rankSpacing": 15
+    "rankSpacing": 25
   },
   "sequence": {
     "mirrorActors": false,
@@ -53,13 +54,12 @@
     "messageFontFamily": "Arial, sans-serif",
     "noteFontFamily": "Arial, sans-serif",
     "fontFamily": "Arial, sans-serif",
-    "fontSize": "12px",
-    "boxMargin": 5,
-    "boxTextMargin": 20,
-    "height": 32,
+    "boxMargin": 1,
+    "boxTextMargin": 10,
+    "height": 28,
     "width": 10,
-    "messageSpacing": 20,
-    "messageMargin": 20,
+    "messageSpacing": 10,
+    "messageMargin": 10,
     "rankSpacing": 2
   }
 }
