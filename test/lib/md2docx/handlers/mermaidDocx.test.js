@@ -80,6 +80,35 @@ async function run() {
     assert.strictEqual(converter.imageCount, 0, 'imageCount should be 0')
   })
 
+  await test('CSS !important rules are applied to inline styles for Word compatibility', async () => {
+    const svgWithCss = `<svg viewBox="0 0 400 200" xmlns="http://www.w3.org/2000/svg">
+<style>.actor{font-size:14px!important;}.messageText{font-size:13px!important;}</style>
+<text style="font-size: 16px; font-weight: 400;" class="actor" x="50" y="20">Network</text>
+<text style="font-size: 16px; font-weight: 400;" class="messageText" x="100" y="60">SecurityModeCommand</text>
+<text style="font-size: 16px;" class="other" x="100" y="100">Unchanged</text>
+</svg>`
+    const mockRenderer = async (codes) => codes.map(() => svgWithCss)
+    const { zip } = await convertAndRead(MERMAID_MD, mockRenderer)
+    const svgFiles = Object.keys(zip.files).filter(f => f.endsWith('.svg'))
+    const svgContent = await zip.file(svgFiles[0]).async('string')
+    // Actor text should have 14px, not 16px
+    assert.ok(svgContent.includes('font-size:14px'), 'actor should have 14px inline')
+    assert.ok(!svgContent.match(/class="actor"[^>]*font-size: 16px/), 'actor should not have 16px')
+    // Message text should have 13px, not 16px
+    assert.ok(svgContent.includes('font-size:13px'), 'messageText should have 13px inline')
+    // Other text should remain unchanged
+    assert.ok(svgContent.match(/class="other"[^>]*font-size: 16px/) || svgContent.match(/font-size: 16px[^>]*class="other"/), 'other class should keep 16px')
+  })
+
+  await test('SVG without style block is unchanged by post-processing', async () => {
+    const svgNoStyle = '<svg viewBox="0 0 200 100" xmlns="http://www.w3.org/2000/svg"><text style="font-size: 16px;" class="actor" x="50" y="20">Test</text></svg>'
+    const mockRenderer = async (codes) => codes.map(() => svgNoStyle)
+    const { zip } = await convertAndRead(MERMAID_MD, mockRenderer)
+    const svgFiles = Object.keys(zip.files).filter(f => f.endsWith('.svg'))
+    const svgContent = await zip.file(svgFiles[0]).async('string')
+    assert.ok(svgContent.includes('font-size: 16px'), 'font-size should remain 16px when no style block')
+  })
+
   await test('no mermaid fences does not call renderer', async () => {
     let called = false
     const mockRenderer = async (codes) => { called = true; return codes.map(() => MOCK_SVG) }
