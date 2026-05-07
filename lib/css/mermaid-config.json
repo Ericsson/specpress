@@ -41,26 +41,14 @@
   "flowchart": {
     "htmlLabels": false,
     "padding": 8,
-    "nodeSpacing": 15,
+    "nodeSpacing": 25,
     "rankSpacing": 25
   },
   "sequence": {
     "mirrorActors": false,
-    "nodeBorder":"#000000",
-    "nodeTextColor":"#000000",
-    "lineColor":"#000000",
-    "actorLineColor":"#000000",
-    "background": "#ffffff",
-    "actorFontFamily": "Arial, sans-serif",
-    "messageFontFamily": "Arial, sans-serif",
-    "noteFontFamily": "Arial, sans-serif",
-    "fontFamily": "Arial, sans-serif",
-    "boxMargin": 1,
-    "boxTextMargin": 10,
-    "height": 28,
-    "width": 10,
-    "messageSpacing": 10,
-    "messageMargin": 10,
-    "rankSpacing": 2
+    "actorMargin": 5,
+    "boxMargin": 0,
+    "height": 25,
+    "width": 10
   }
 }
