@@ -39,6 +39,7 @@
   },
   "themeCSS": ".actor { font-size: 14px !important; } .messageText { font-size: 13px !important; } .noteText { font-size: 13px !important; } .loopText { font-size: 13px !important; } .labelText { font-size: 13px !important; }",
   "flowchart": {
+    "htmlLabels": false,
     "padding": 8,
     "nodeSpacing": 15,
     "rankSpacing": 25
