@@ -91,7 +91,7 @@ console.log('buildFrontPageHtml')
 
 ;(() => {
   const html = buildFrontPageHtml(null)
-  assert(html.includes('class="cover-page"'), 'still produces HTML with null data')
+  assert(html === '', 'returns empty string for null data')
   console.log('  \x1b[32m✓\x1b[0m works with null data')
 })()
 
