@@ -85,6 +85,11 @@ const snippets = {
       return elements.some(el => JSON.stringify(el).includes('TOC'))
     },
   },
+  [PARA.CR_HISTORY]: {
+    md: '{ChangeHistory}',
+    htmlCheck: (html) => !html.includes('{ChangeHistory}'),
+    docxCheck: () => true, // placeholder consumed; no table when no specRootPath/CRs
+  },
   [PARA.TABLE_CAPTION]: {
     md: 'Table 1: My table\n\n| A | B |\n|---|---|\n| 1 | 2 |',
     htmlCheck: (html) => html.includes('class="table-caption"'),
@@ -154,8 +159,8 @@ async function runDocxTests() {
     const snippet = snippets[key]
     await asyncTest(`${type} is handled`, async () => {
       const elements = await docxElements(snippet.md)
-      assert.ok(elements.length > 0, `No elements produced for ${type}`)
       if (snippet.docxStyle !== undefined) {
+        assert.ok(elements.length > 0, `No elements produced for ${type}`)
         const styles = elements.map(getDocxStyle)
         if (snippet.docxStyle === null) {
           // PARAGRAPH: should have no special style

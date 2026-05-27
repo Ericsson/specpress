@@ -2,6 +2,11 @@ const { execSync } = require('child_process')
 const fs = require('fs')
 const path = require('path')
 
+// Ensure UTF-8 output on Windows
+if (process.platform === 'win32') {
+  try { execSync('chcp 65001', { stdio: 'ignore' }) } catch (e) {}
+}
+
 const testDir = path.join(__dirname, '..', 'test')
 let totalPassed = 0
 let totalFailed = 0

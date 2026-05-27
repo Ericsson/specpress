@@ -13,7 +13,7 @@ pre {
   font-size: 12px;
   text-align: left;
   color: #DDD;
-  background-color: #222;
+  background-color: #303030;
   padding: 4px;
   margin-top: 10px;
   margin-bottom: 5px;
@@ -31,7 +31,7 @@ samp  {
   font-size: 12px;
   text-align: left;
   color: #DDD;
-  background-color: #222;
+  background-color: #303030;
 }
 
 
@@ -174,6 +174,10 @@ table {
   margin-bottom: 5.3;
 }
 
+table.spec-table {
+  width: 100%;
+}
+
 td, th {
   border-collapse: collapse;
   border: 1pt solid black;
@@ -236,7 +240,7 @@ tr:nth-child(odd) {background: #FFF}
 }
 
 pre.asn {
-  background: #222222;
+  background: #303030;
   padding: 10px;
   margin-bottom: 0.0em;
   margin-top: 1.0em;
@@ -248,7 +252,7 @@ pre.asn {
 }
 
 pre.asn code {
-  background: #222;
+  background: #303030;
   padding: 0;
 }
 

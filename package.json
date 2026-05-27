@@ -39,6 +39,12 @@
 		"./lib/common/gitHelpers": {
 			"require": "./lib/common/gitHelpers.js"
 		},
+		"./lib/common/crCoverPageDetector": {
+			"require": "./lib/common/crCoverPageDetector.js"
+		},
+		"./lib/common/crCoverPageLoader": {
+			"require": "./lib/common/crCoverPageLoader.js"
+		},
 		"./lib/md2html/md2html": {
 			"require": "./lib/md2html/md2html.js"
 		},
@@ -59,6 +65,12 @@
 		},
 		"./lib/md2html/frontPage": {
 			"require": "./lib/md2html/frontPage.js"
+		},
+		"./lib/md2html/crCoverPageRenderer": {
+			"require": "./lib/md2html/crCoverPageRenderer.js"
+		},
+		"./lib/md2docx/crCoverPageRenderer": {
+			"require": "./lib/md2docx/crCoverPageRenderer.js"
 		},
 		"./lib/md2docx/styles/docxStyles": {
 			"require": "./lib/md2docx/styles/docxStyles.js"
@@ -100,6 +112,8 @@
 	"author": "Serban Purge <serban.purge@ericsson.com>",
 	"license": "MIT",
 	"dependencies": {
+		"ajv": "^8.20.0",
+		"ajv-formats": "^3.0.1",
 		"docx": "^9.6.1",
 		"katex": "^0.16.38",
 		"markdown-it": "^14.1.1",

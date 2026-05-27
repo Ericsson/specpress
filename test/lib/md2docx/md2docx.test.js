@@ -478,6 +478,86 @@ async function run() {
     }
   })
 
+  console.log('\nfront page and CR cover page in DOCX')
+
+  await test('convert with crCoverPageData produces CR cover page tables', async () => {
+    const mdPath = path.join(os.tmpdir(), `fp_cr_${Date.now()}.md`)
+    const docxPath = mdPath.replace('.md', '.docx')
+    fs.writeFileSync(mdPath, '# Hello\n\nWorld\n')
+    const crData = {
+      'TDoc Number': 'R2-001', Specification: '38.331', 'Current version': '1.0.0',
+      CR: 1, rev: 1, Affected: {}, Title: 'Test CR', 'Source to WG': ['Ericsson'],
+      'Source to TSG': [], 'Work item code': [], Category: 'B',
+      'Reason for change': 'Test', 'Summary of change': 'Test',
+      'Consequences if not approved': 'Bad', 'Clauses affected': [],
+      'Other specs affected': {}, 'Other comments': ''
+    }
+    try {
+      const converter = new MarkdownToDocxConverter(null, '')
+      await converter.convert(mdPath, docxPath, os.tmpdir(), null, { crCoverPageData: crData })
+      const buf = fs.readFileSync(docxPath)
+      const zip = await JSZip.loadAsync(buf)
+      const xml = await zip.file('word/document.xml').async('string')
+      const texts = (xml.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || []).map(t => t.replace(/<[^>]+>/g, ''))
+      assert.ok(texts.some(t => t.includes('CHANGE REQUEST')), 'should contain CR cover page')
+      assert.ok(texts.some(t => t.includes('Test CR')), 'should contain CR title')
+    } finally {
+      if (fs.existsSync(mdPath)) fs.unlinkSync(mdPath)
+      if (fs.existsSync(docxPath)) fs.unlinkSync(docxPath)
+    }
+  })
+
+  await test('convert with frontPage and no crCoverPageData uses standard front page', async () => {
+    const mdPath = path.join(os.tmpdir(), `fp_std_${Date.now()}.md`)
+    const docxPath = mdPath.replace('.md', '.docx')
+    fs.writeFileSync(mdPath, '# Hello\n\nWorld\n')
+    try {
+      const { buildFrontPageDocx } = require('../../../lib/md2docx/frontPage')
+      const frontPage = buildFrontPageDocx({ SPEC_NUMBER: '99.999', VERSION: '1.0.0', TITLE: 'Test Spec' })
+      const converter = new MarkdownToDocxConverter(null, '')
+      await converter.convert(mdPath, docxPath, os.tmpdir(), frontPage, {})
+      const buf = fs.readFileSync(docxPath)
+      const zip = await JSZip.loadAsync(buf)
+      const xml = await zip.file('word/document.xml').async('string')
+      const texts = (xml.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || []).map(t => t.replace(/<[^>]+>/g, ''))
+      assert.ok(texts.some(t => t.includes('99.999')), 'should contain spec number from front page')
+      assert.ok(!texts.some(t => t.includes('CHANGE REQUEST')), 'should NOT contain CR cover page')
+    } finally {
+      if (fs.existsSync(mdPath)) fs.unlinkSync(mdPath)
+      if (fs.existsSync(docxPath)) fs.unlinkSync(docxPath)
+    }
+  })
+
+  await test('convert with both frontPage and crCoverPageData uses CR cover page only', async () => {
+    const mdPath = path.join(os.tmpdir(), `fp_both_${Date.now()}.md`)
+    const docxPath = mdPath.replace('.md', '.docx')
+    fs.writeFileSync(mdPath, '# Hello\n\nWorld\n')
+    const crData = {
+      'TDoc Number': 'R2-002', Specification: '38.331', 'Current version': '1.0.0',
+      CR: 2, rev: 0, Affected: {}, Title: 'CR wins', 'Source to WG': ['Nokia'],
+      'Source to TSG': [], 'Work item code': [], Category: 'A',
+      'Reason for change': 'Test', 'Summary of change': 'Test',
+      'Consequences if not approved': 'Bad', 'Clauses affected': [],
+      'Other specs affected': {}, 'Other comments': ''
+    }
+    try {
+      const { buildFrontPageDocx } = require('../../../lib/md2docx/frontPage')
+      const frontPage = buildFrontPageDocx({ SPEC_NUMBER: '99.999', VERSION: '1.0.0', TITLE: 'Test Spec' })
+      const converter = new MarkdownToDocxConverter(null, '')
+      await converter.convert(mdPath, docxPath, os.tmpdir(), frontPage, { crCoverPageData: crData })
+      const buf = fs.readFileSync(docxPath)
+      const zip = await JSZip.loadAsync(buf)
+      const xml = await zip.file('word/document.xml').async('string')
+      const texts = (xml.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || []).map(t => t.replace(/<[^>]+>/g, ''))
+      assert.ok(texts.some(t => t.includes('CHANGE REQUEST')), 'should contain CR cover page')
+      assert.ok(texts.some(t => t.includes('CR wins')), 'should contain CR title')
+      assert.ok(!texts.some(t => t.includes('99.999')), 'should NOT contain standard front page spec number')
+    } finally {
+      if (fs.existsSync(mdPath)) fs.unlinkSync(mdPath)
+      if (fs.existsSync(docxPath)) fs.unlinkSync(docxPath)
+    }
+  })
+
   console.log(`\n${passed} passed, ${failed} failed`)
   process.exit(failed > 0 ? 1 : 0)
 }

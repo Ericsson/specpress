@@ -1,0 +1,257 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/Ericsson/specpress/schemas/crCoverPage.json",
+  "title": "3GPP Change Request Cover Page",
+  "description": "Schema for 3GPP Change Request (CR) cover page",
+  "type": "object",
+  "required": [
+    "Specification",
+    "CR",
+    "Current version",
+    "Release",
+    "Title",
+    "Category",
+    "Source to TSG",
+    "Work item code",
+    "Reason for change",
+    "Summary of change",
+    "Clauses affected"
+  ],
+  "properties": {
+    "TDoc Number": {
+      "type": "string",
+      "description": "Document number indicating the group and a running number that starts with the year (e.g., 'RP-240123', 'R3-1234567', 'SP-263456')",
+      "pattern": "^[CSR][P1-6]-[0-9]{6,7}$",
+      "examples": ["RP-240123", "R3-1234567", "SP-263456", "C4-0012345"]
+    },
+    "Specification": {
+      "type": "string",
+      "description": "Technical Specification or Report number (e.g., '38.413', '21.905', '38.101-1')",
+      "pattern": "^[0-9]{2}\\.[0-9]{3}(-[0-9])?$",
+      "examples": ["38.413", "21.905", "38.101-1"]
+    },
+    "CR": {
+      "type": "integer",
+      "description": "Change Request number (0 to 9999)",
+      "minimum": 0,
+      "maximum": 9999,
+      "examples": [123, 1234, 42]
+    },
+    "rev": {
+      "type": "integer",
+      "description": "Revision number of the CR (0 to 99). Omit or use 0 for initial submission",
+      "minimum": 1,
+      "maximum": 99,
+      "examples": [1, 2, 10]
+    },
+    "Current version": {
+      "type": "string",
+      "description": "Current version of the specification (e.g., '17.5.0')",
+      "pattern": "^[0-9]{1,2}\\.[0-9]{1,2}\\.[0-9]{1,2}$",
+      "examples": ["17.5.0", "18.0.0"]
+    },
+    "Release": {
+      "type": "string",
+      "description": "3GPP Release targeted by this CR (e.g., 'Rel-18', 'Rel-19', '6G')",
+      "minLength": 1,
+      "examples": ["Rel-17", "Rel-18", "Rel-19", "6G"]
+    },
+    "Affected": {
+      "type": "object",
+      "description": "Indicates which network elements are affected by this change",
+      "properties": {
+        "UICC": {
+          "type": "boolean",
+          "description": "Universal Integrated Circuit Card (SIM card) is affected",
+          "default": false
+        },
+        "ME": {
+          "type": "boolean",
+          "description": "Mobile Equipment (UE/device) is affected",
+          "default": false
+        },
+        "Radio Access Network": {
+          "type": "boolean",
+          "description": "Radio Access Network (base stations) is affected",
+          "default": false
+        },
+        "Core Network": {
+          "type": "boolean",
+          "description": "Core Network is affected",
+          "default": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "Title": {
+      "type": "string",
+      "description": "Short descriptive title of the change request",
+      "minLength": 1,
+      "maxLength": 200,
+      "examples": ["Correction to handover procedure", "Addition of new IE"]
+    },
+    "Source to WG": {
+      "type": "array",
+      "description": "Source company/companies when submitting to Working Group. It should be absent when the CR is submitted directly to the TSG.",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 1,
+      "examples": [["Ericsson"], ["Nokia", "Samsung"]]
+    },
+    "Source to TSG": {
+      "type": "array",
+      "description": "Source company/companies when submitting to Technical Specification Group",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 1,
+      "examples": [["RAN2"], ["Ericsson"], ["Nokia", "Samsung"]]
+    },
+    "Work item code": {
+      "type": "array",
+      "description": "Related work item code(s)",
+      "items": {
+        "type": "string",
+        "enum": [
+          "FS_6GSpecs",
+          "FS_6G_REQ",
+          "FS_6G_RAN_Scen_Req",
+          "FS_6G_ARC",
+          "FS_6G_Radio",
+          "FS_6G_APP",
+          "FS_6G_SEC",
+          "FS_6G_MED",
+          "FS_6G_CH",
+          "FS_6G_OAM",
+          "FS_6G_LI",
+          "FS_6G_CPCN_CT",
+          "FS_6G_UPCN_CT",
+          "FS_6G_ResRel_CT",
+          "FS_6G_NAS_CT",
+          "TEI"
+        ],
+        "enumDescriptions": [
+          "Study on Modernization of Specification Format and Procedures for 6G",
+          "Study on 6G Use Cases and Service Requirements",
+          "Study on 6G Scenarios and Requirements",
+          "Study on Architecture for 6G System",
+          "Study on 6G Radio",
+          "Study on 6G Application Enablement",
+          "Study on Security for the 6G System",
+          "Study on Media Aspects for 6G System",
+          "Study on Charging Aspects of 6G System",
+          "Study on 6G Management and Orchestration",
+          "Study on Lawful Interception for 6G",
+          "Study on Control Plane Protocols in Core Network of the 6G System",
+          "Study on Protocol aspects for User Plane in Core Network of 6G System",
+          "Study on Resilience and Reliability in Core Network of the 6G System",
+          "Study on NAS protocol for 6G System",
+          "Technical Enhancements and Improvements"
+        ]
+      },
+      "minItems": 1,
+      "examples": [["FS_6G_ARC"], ["FS_6G_Radio", "FS_6G_SEC"]]
+    },
+    "Date": {
+      "type": "string",
+      "description": "Date when the CR was submitted (YYYY-MM-DD format)",
+      "format": "date",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+      "examples": ["2024-03-15", "2025-01-20"]
+    },
+    "Category": {
+      "type": "string",
+      "description": "CR category: A=Correction, B=Addition, C=Functional modification, D=Editorial, F=Correction (not affecting implementations)",
+      "enum": ["A", "B", "C", "D", "F"],
+      "examples": ["A", "B"]
+    },
+    "Reason for change": {
+      "type": "string",
+      "description": "Detailed explanation of why this change is needed",
+      "minLength": 1,
+      "examples": ["The current specification is ambiguous regarding...", "A new feature is required to support..."]
+    },
+    "Summary of change": {
+      "type": "string",
+      "description": "Concise summary of what is being changed",
+      "minLength": 1,
+      "examples": ["Add clarification text in section 5.2.3", "Introduce new procedure for..."]
+    },
+    "Impact analysis": {
+      "type": "object",
+      "description": "Analysis of implementation impact, e.g., if only one side implements the change",
+      "properties": {
+        "UE implements - RAN does not": {
+          "type": "string",
+          "description": "Impact if UE implements but RAN does not",
+          "default": ""
+        },
+        "RAN implements - UE does not": {
+          "type": "string",
+          "description": "Impact if RAN implements but UE does not",
+          "default": ""
+        }
+      },
+      "additionalProperties": false
+    },
+    "Consequences if not approved": {
+      "type": "string",
+      "description": "What happens if this CR is not approved",
+      "default": "",
+      "examples": ["Ambiguity remains in the specification, which may lead to...", "Feature cannot be deployed"]
+    },
+    "Clauses affected": {
+      "type": "array",
+      "description": "List of specification clauses (sections) affected by this change",
+      "items": {
+        "type": "string",
+        "pattern": "^[0-9]+(\\.[0-9]+)*(\\.[0-9]+)?$"
+      },
+      "minItems": 0,
+      "examples": [["5.2.3", "7.1.2"], ["3.1", "4.2.1", "Annex A"]]
+    },
+    "Other specs affected": {
+      "type": "object",
+      "description": "Other specifications that are affected by this change",
+      "properties": {
+        "Other core specifications": {
+          "type": "array",
+          "description": "List of other core specifications affected (format: 'TS/TR number' and 'CR number')",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 0,
+          "examples": [["TS 38.331", "TS 38.321"], ["None"]]
+        },
+        "Test specifications": {
+          "type": "array",
+          "description": "List of test specifications affected (format: 'TS/TR number' and 'CR number')",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 0,
+          "examples": [["TS 38.523-1", "CR 0789"], ["None"]]
+        },
+        "O&M Specifications": {
+          "type": "array",
+          "description": "List of Operations & Maintenance specifications affected (format: 'TS/TR number' and 'CR number')",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 0,
+          "examples": [["TS 32.422", "CR 0012"], ["None"]]
+        }
+      },
+      "additionalProperties": false
+    },
+    "Other comments": {
+      "type": "string",
+      "description": "Any additional comments or notes",
+      "default": ""
+    }
+  },
+  "additionalProperties": false
+}
