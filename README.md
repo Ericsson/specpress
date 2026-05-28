@@ -79,8 +79,6 @@ Configure the spec repository via environment variables `SPEC_REPO` and `SPEC_SU
 
 The markdown-to-HTML/DOCX conversion goes beyond regular markdown rendering. The intention is to produce styles in the output documents which markdown does not support out of the box. At the same time, we want to be able to use regular markdown in the source files so that the markdown documents render well also without these tools (e.g. in the Gitlab web-view). The following special adaptations are performed by SpecPress:
 
-- **Cover page** support: an HTML template with {{placeholder}} substitution from a JSON data file, rendered as the first page(s) in both HTML and DOCX exports.
-- A paragraph containing **{TableOfContent(N-M)}** generates a clickable table of contents covering heading levels N through M in both HTML and DOCX.
 - Semi-automated **section numbering** based on leading numbers in folder- and file names. See [Section Numbering](#section-numbering) for a detailed description.
 - A level-1 heading starting with "**Annex**" is treated as an Annex heading with a line break after the first colon (Heading8 style in DOCX).
 - An unordered **bullet list** in markdown is converted into a Bx-Style list in HTML and DOCX. I.e., it is assumed that the first "word" in the bullet text is the "bullet character". The script extracts those one or more first characters and declares them accordingly in the corresponding "\<li\>" statements in the generated HTML. Furthermore, the CSS for the corresponding _li_/_ul_ styles is adjusted so that bullet lists are indented properly. This scheme allows using various bullets styles (e.g. -, 1>, 2>, [1], [2], ...) as it used to be done with the traditional B1, B2, B3... styles in DOCX.
@@ -97,6 +95,10 @@ The markdown-to-HTML/DOCX conversion goes beyond regular markdown rendering. The
 - A paragraph that begins with "**EXAMPLE**" is interpreted as an example and associated with CSS class ".example" and DOCX style EX.
 - A paragraph that begins with the word "**Editor's Note**" is interpreted as an editor's note and associated with a special CSS class (".editors-note") which is rendered in red font and indented accordingly.
 - **Hyperlinks** in markdown are exported as clickable hyperlinks in both HTML and DOCX (with the Hyperlink character style: blue, underlined).
+- Specpress auto-generates a **specification front page** based on data provided in a JSON data file, which should be stored in the specification repository.
+- Instead of the specification front page specpress prepends a **change request (CR) cover page**. It auto-generates it from data that the user provides in a JSON data file and that is stored in the specification repository, too. For more information, take a look at the [detailed description of the CR cover page functionality](documentation/CR-Cover-Page.md).
+- From all CR cover page data files specpress generates a **history table** if the user includes the `{ChangeHistory}` placeholder e.g. in a corresponding Annex.
+- A paragraph containing **{TableOfContent(N-M)}** generates a clickable table of contents covering heading levels N through M in both HTML and DOCX.
 
 ### Section Numbering
 
@@ -238,35 +240,41 @@ SpecPress enables you to have a "what you see is what you get"-like experience w
 
 Follow the instructions below to start using the 3GPP specifications local development tools provided by specpress:
 
-```
-# create a new folder
+```bash
 mkdir myPress
+```
 
-# Move into the folder
+```bash
 cd myPress
+```
 
-# Initialize a new Node.js project
+```bash
 npm init
+```
 
-# install specpress as a dev dependency of your project
+```bash
 npm install specpress --save-dev
+```
 
-# Initialize specpress
+```bash
 npx sp_init
+```
 
-# Move into the source folder which will host your 3GPP specification
+```bash
 cd src
+```
 
-# clone inhere a git repository containing a 3GPP specification
+```bash
 git clone https://forge.3gpp.org/rep/fs_6gspecs_new/ericsson_multifiletypes_onem2m_example.git
+```
 
-# Move into the local directory of your specification or a sub folder of it and start using specpress
+```bash
 cd ericsson_multifiletypes_onem2m_example
 ```
 
 Run the `npx sp_start` command in the terminal and SpecPress will convert and concatenate the specification files from your working directory into a single HTML file which is published on a local http server. The resulting web page can be displayed in any browser that points at `http://localhost:8080`.
 
-```
+```bash
 npx sp_start
 ```
 
@@ -276,7 +284,7 @@ The `sp_start` command is equivalent to running in parallel the `sp_publish`, `s
 
 Execute the following commands to display your specification as a webpage on your local http server:
 
-```
+```bash
 # create the /mySpecifications/public/index.html file
 npx sp_publish
 
@@ -287,7 +295,7 @@ npx sp_serve
 
 ### Watch for changes in your source files
 
-```
+```bash
 npx sp_watch
 ```
 
@@ -300,7 +308,7 @@ The `sp_watch` command will:
 
 SpecPress enables you to automatically generate `.png` files containing UML diagrams using as an input a text file containing a textual description of the UML diagram as presented in the example below:
 
-```
+```text
 #/mySpecifications/src/38423/example.txt
 @startuml
 Alice -> Bob: Authentication Request
@@ -310,7 +318,7 @@ Boby --> Alice: Authentication Response
 
 The `.png` files are saved in the specification's subfolder indicated in the `sp.config.json` file.
 
-```
+```bash
 # generate .png files for all the .txt files in the working folder
 npx sp_generateUML
 
@@ -322,7 +330,7 @@ npx sp_generateUML-file ./example.txt
 
 SpecPress enables you to export a file which contains all the specification files from the working folder. The exported file will be saved in the `/mySpecifications/export` folder.
 
-```
+```bash
 # export a docx file
 npx sp_export docx
 
