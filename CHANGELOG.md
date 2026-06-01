@@ -5,7 +5,26 @@ All notable changes to the SpecPress library will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [3.2.3] - 2026-06-01
+
+### Added
+
+- **.vscode/settings.json** - Settings for indentation and JSON formatting.
+
+### Changed
+
+- **CR Cover Page Schema** - Updated CR cover page JSON schema
+  - `Release` field changed from string to integer (minimum: 8)
+  - Release number is now displayed with "Rel-" prefix (e.g., 18 → "Rel-18")
+  - `CR` field is now optional (shows "-" when absent for draft CRs)
+  - CR number shows "-" instead of "0000" when not set
+  - `Clauses affected` field now accepts free text (pattern constraint removed)
+  - `Work item code` field now accepts any work item codes (enum constraint removed)
+  - Work item code descriptions moved to field description for reference
+- **CR Cover Page Rendering** - Improved formatting
+  - CR number and revision number are now centered in their cells (HTML and DOCX)
+
+## [3.2.2] - 2026-05-28
 
 ### Added
 
@@ -123,7 +142,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Complete rewrite from original internal tool
 - Modular architecture with separate HTML and DOCX paths
 
-[Unreleased]: https://github.com/Ericsson/specpress/compare/v3.1.2...HEAD
+[Unreleased]: https://github.com/Ericsson/specpress/compare/v3.2.3...HEAD
+[3.2.3]: https://github.com/Ericsson/specpress/releases/tag/v3.2.3
+[3.2.2]: https://github.com/Ericsson/specpress/releases/tag/v3.2.2
 [3.1.2]: https://github.com/Ericsson/specpress/releases/tag/v3.1.2
 [3.1.0]: https://github.com/Ericsson/specpress/releases/tag/v3.1.0
 [3.0.0]: https://github.com/Ericsson/specpress/releases/tag/v3.0.0
