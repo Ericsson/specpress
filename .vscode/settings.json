@@ -1,0 +1,9 @@
+{
+    "editor.wordWrap": "bounded",
+    "editor.wordWrapColumn": 240,
+    "editor.wrapOnEscapedLineFeeds": true,
+    "editor.wrappingIndent": "indent",
+    "[markdown]": {
+      "editor.wrappingIndent": "same"
+    }
+}
