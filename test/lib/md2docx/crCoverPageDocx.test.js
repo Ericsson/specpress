@@ -26,7 +26,7 @@ const sampleCR = {
   'TDoc Number': 'R2-2600067',
   Specification: '67.331',
   'Current version': '1.0.0',
-  Release: '6G',
+  Release: 19,
   CR: 1,
   rev: 1,
   Affected: { UICC: false, ME: true, 'Radio Access Network': true, 'Core Network': false },
@@ -34,6 +34,7 @@ const sampleCR = {
   'Source to WG': ['Ericsson'],
   'Source to TSG': ['RAN2'],
   'Work item code': ['FS_6G_Radio'],
+  Date: '2026-01-15',
   Category: 'B',
   'Reason for change': 'Contention based PUSCH has been agreed to be added.',
   'Summary of change': 'Defining a new PhysicalChannel type CB-PUSCH.',
@@ -181,7 +182,7 @@ async function run() {
   await test('Release uses explicit field value', async () => {
     const { xml } = await crToDocXml()
     const texts = findTexts(xml)
-    assert.ok(texts.some(t => t === '6G'), 'should use explicit Release field')
+    assert.ok(texts.some(t => t === 'Rel-19'), 'should use explicit Release field with Rel- prefix')
     assert.ok(!texts.some(t => t === 'Rel-1'), 'should not derive from version')
   })
 
@@ -373,7 +374,7 @@ async function run() {
     CR: 42,
     rev: 3,
     'Current version': '17.5.0',
-    Release: 'Rel-17',
+    Release: 17,
     Affected: { UICC: true, ME: true, 'Radio Access Network': true, 'Core Network': true },
     Title: 'Correction to handover procedure',
     'Source to WG': ['Ericsson', 'Nokia'],

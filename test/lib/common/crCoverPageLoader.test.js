@@ -30,7 +30,7 @@ function test(name, fn) {
 const validData = {
   'Specification': '38.413',
   'Current version': '17.5.0',
-  'Release': 'Rel-17',
+  'Release': 17,
   'CR': 123,
   'Title': 'Test CR',
   'Category': 'B',
@@ -38,7 +38,9 @@ const validData = {
   'Reason for change': 'Some reason',
   'Summary of change': 'Some summary',
   'Work item code': ['FS_6G_Radio'],
-  'Clauses affected': ['5.2.3']
+  'Clauses affected': ['5.2.3'],
+  'Date': '2026-05-28',
+  'Consequences if not approved': 'Bad things happen'
 }
 
 console.log('schema-driven validation')
@@ -99,7 +101,7 @@ test('rejects null data', () => {
 })
 
 test('accepts data with Release field', () => {
-  const data = { ...validData, Release: '6G' }
+  const data = { ...validData, Release: 18 }
   const result = validateCRCoverPageData(data, 'test.json')
   assert.strictEqual(result.valid, true)
 })
@@ -112,9 +114,10 @@ test('pads with leading zeros', () => {
   assert.strictEqual(formatCRNumber(9999), '9999')
 })
 
-test('returns 0000 for null/undefined', () => {
-  assert.strictEqual(formatCRNumber(null), '0000')
-  assert.strictEqual(formatCRNumber(undefined), '0000')
+test('returns - for null/undefined/0', () => {
+  assert.strictEqual(formatCRNumber(null), '-')
+  assert.strictEqual(formatCRNumber(undefined), '-')
+  assert.strictEqual(formatCRNumber(0), '-')
 })
 
 console.log('\nformatRevNumber')
