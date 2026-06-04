@@ -1,15 +1,18 @@
 # .gitlab-ci.yml — Build HTML from markdown specs and publish via GitLab Pages.
 #
-# Copy this file into your specification repository and configure the
-# variables below (Settings > CI/CD > Variables) or override them here.
+# Copy this file to the top level of your  specification repository and
+# rename it to ".gitlab-ci.yml". Then configure the variables below in
+# (Settings > CI/CD > Variables) or override them in your version of
+# this file.
 #
 # The rendered HTML is available at:
 #   https://<namespace>.pages.<gitlab-host>/<project>/
 
 variables:
-  SPEC_INPUT_DIR: "spec"          # path to markdown files, relative to repo root
-  SPECPRESS_REPO: "https://github.com/Ericsson/specpress.git"
-  SPECPRESS_REF: "main"
+  SPEC_INPUT_DIR: "specification" # path to markdown files, relative to repo root
+  FRONT_PAGE_DATA: ""             # path to front page JSON file (optional, leave empty to disable)
+  SPECPRESS_REPO: "https://github.com/Ericsson/specpress.git" # Path to spec-press (not to your specification repo!)
+  SPECPRESS_REF: "main"  # Version of specpress (not of your specification!)
 
 stages:
   - pages
@@ -21,7 +24,11 @@ pages:
     - apk add --no-cache git
     - git clone --depth 1 --branch $SPECPRESS_REF $SPECPRESS_REPO /tmp/specpress
     - cd /tmp/specpress && npm ci --production && cd -
-    - node /tmp/specpress/lib/cli/export-html.js "$SPEC_INPUT_DIR" public
+    - >
+      node /tmp/specpress/lib/cli/export-html.js
+      "$SPEC_INPUT_DIR"
+      public
+      ${FRONT_PAGE_DATA:+--front-page-data "$FRONT_PAGE_DATA"}
   artifacts:
     paths:
       - public
