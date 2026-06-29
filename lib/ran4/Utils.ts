@@ -306,3 +306,41 @@ export abstract class BaseList extends BaseClass {
     throw new Error(`Subclass ${this.constructor.name} shall implement toJSON()`);
   }
 }
+
+//////////////////////////////
+// Normalize any RAN4 JSON file
+
+/**
+ * Normalizes a single RAN4 JSON file (Band, CA, or DC configuration).
+ *
+ * Detects the file type from the JSON content and applies appropriate normalization:
+ * - Key ordering enforced by toJSON() methods
+ * - UL configs sorted (for CA/DC)
+ * - notes object keys sorted alphabetically
+ * - Consistent indentation via RAN4JsonEncoder
+ *
+ * @param filePath - Path to the JSON file to normalize
+ * @returns The absolute path of the normalized file
+ * @throws Error if the file is not a valid RAN4 JSON file
+ */
+export async function normalizeJsonFile(filePath: string): Promise<string> {
+  const absPath = resolve(filePath);
+  const dict = LoadJsonFileToDict(absPath);
+
+  let obj: { toJSON(enc: RAN4JsonEncoder, level: number): void };
+  if ("scsList" in dict) {
+    const { ChBwOneBand } = await import("./ChannelBandwidthPerBand.js");
+    obj = new ChBwOneBand(dict);
+  } else if (typeof dict["bcId"] === "string" && (dict["bcId"] as string).startsWith("DC_")) {
+    const { DualConnectivityConfig } = await import("./DualConnectivity.js");
+    obj = new DualConnectivityConfig(dict, null, false, false);
+  } else {
+    const { BC } = await import("./BandCombinations.js");
+    obj = new BC(dict);
+  }
+
+  const enc = new RAN4JsonEncoder(absPath);
+  obj.toJSON(enc, 0);
+  enc.flush();
+  return absPath;
+}

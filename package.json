@@ -13,8 +13,8 @@
 		"sp_watch": "./src/bin/watch.mjs",
 		"specpress-export-html": "./lib/cli/export-html.js",
 		"specpress-export-docx": "./lib/cli/export-docx.js",
-		"specpress-validate-ran4": "./lib/cli/validate-ran4.js",
-		"specpress-normalize-ran4": "./lib/cli/normalize-ran4.js"
+		"specpress-validate-ran4": "./lib/cli/validate-38101.js",
+		"specpress-normalize-ran4": "./lib/cli/normalize-json-file.js"
 	},
 	"main": "index.mjs",
 	"type": "module",
