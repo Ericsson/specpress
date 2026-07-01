@@ -5,6 +5,19 @@ All notable changes to the SpecPress library will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.4] - 2026-06-12
+
+### Added
+
+- **CI template** - DOCX export pipeline now automatically includes a cover page:
+  - Includes CR cover page when `CRxxxx.json` is detected in the spec root's `history/` folder
+  - Includes standard front page when `FRONT_PAGE_DATA` variable is configured
+  - No configuration needed for CR cover page — auto-detected from repository content
+
+### Security
+
+- Updated dependencies to fix 4 vulnerabilities: `follow-redirects` (moderate), `linkify-it` (high), `markdown-it` (moderate), `qs` (moderate)
+
 ## [3.2.3] - 2026-06-01
 
 ### Added
@@ -142,7 +155,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Complete rewrite from original internal tool
 - Modular architecture with separate HTML and DOCX paths
 
-[Unreleased]: https://github.com/Ericsson/specpress/compare/v3.2.3...HEAD
+[Unreleased]: https://github.com/Ericsson/specpress/compare/v3.2.4...HEAD
+[3.2.4]: https://github.com/Ericsson/specpress/compare/v3.2.3...v3.2.4
 [3.2.3]: https://github.com/Ericsson/specpress/releases/tag/v3.2.3
 [3.2.2]: https://github.com/Ericsson/specpress/releases/tag/v3.2.2
 [3.1.2]: https://github.com/Ericsson/specpress/releases/tag/v3.1.2
