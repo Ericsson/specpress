@@ -1,4 +1,8 @@
 tests/
+test/
 public/
 output/
 *.log
+
+# RAN4 TypeScript sources (compiled JS in dist/ is what consumers use)
+lib/ran4/*.ts

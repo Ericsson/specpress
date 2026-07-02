@@ -5,6 +5,18 @@ All notable changes to the SpecPress library will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **RAN4 Band Combinations library** (`lib/ran4/`) - Library for loading, validating, and rendering 3GPP TS 38.101 band combination data
+  - Parse and validate Band (`n*.json`), CA (`CA_*.json`), and DC (`DC_*.json`) JSON files
+  - BC_ID parser with properties: intra/inter-band, FR1/FR2, contiguous/non-contiguous, NR only, SUL
+  - Schema and content validation with detailed error reporting
+  - HTML table rendering for band combinations
+  - JSON normalization (canonical key ordering, consistent formatting)
+  - CLI tools: `validate-38101.js` and `normalize-json-file.js`
+
 ## [3.2.4] - 2026-06-12
 
 ### Added

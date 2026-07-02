@@ -45,6 +45,24 @@ Options:
 
 Mermaid rendering requires Chrome or Edge to be installed on the system.
 
+### Validate Band Combination Data
+
+Validates RAN4 band, CA, and DC JSON files against schemas and cross-checks data consistency (TS 38.101):
+
+```bash
+node node_modules/specpress/lib/cli/validate-38101.js [--skip-validation] [--skip-schema] [--no-abort] [--output <file>] <rootFolder>
+```
+
+### Normalize a RAN4 JSON File
+
+Rewrites a single RAN4 JSON file with canonical key ordering and consistent formatting:
+
+```bash
+node node_modules/specpress/lib/cli/normalize-json-file.js <path-to-json-file>
+```
+
+For detailed documentation of the RAN4 library, see [Band Combinations](documentation/Band-Combinations.md).
+
 ### CI Pipeline Integration
 
 The `ci_templates/` directory contains ready-to-use GitLab CI configurations:
@@ -203,6 +221,7 @@ The `lib/` directory is organized by concern:
 - **`md2html/`** — HTML renderer built on markdown-it. `md2html.js` is the main class; `handlers/` contains format-specific logic (ASN.1 highlighting, JsonTable).
 - **`md2docx/`** — DOCX converter built on the docx library. `md2docx.js` walks markdown-it tokens and emits docx elements; `handlers/` contains specialized converters (equations, mermaid, JsonTable, ASN.1); `styles/` defines 3GPP paragraph styles.
 - **`cli/`** — Thin command-line wrappers around the library classes.
+- **`ran4/`** — RAN4 band combination library for loading, validating, and rendering 3GPP TS 38.101 band combination data (bands, CA, DC configurations).
 - **`css/`** — Default stylesheet and mermaid configuration.
 
 The `src/` directory provides local development tools (`sp_start`, `sp_publish`, `sp_watch`, `sp_export`, etc.) that delegate to the `lib/` converters for all markdown-to-HTML and markdown-to-DOCX processing.

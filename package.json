@@ -12,7 +12,9 @@
 		"sp_serve": "./src/bin/serve.mjs",
 		"sp_watch": "./src/bin/watch.mjs",
 		"specpress-export-html": "./lib/cli/export-html.js",
-		"specpress-export-docx": "./lib/cli/export-docx.js"
+		"specpress-export-docx": "./lib/cli/export-docx.js",
+		"specpress-validate-ran4": "./lib/cli/validate-38101.js",
+		"specpress-normalize-ran4": "./lib/cli/normalize-json-file.js"
 	},
 	"main": "index.mjs",
 	"type": "module",
@@ -90,11 +92,18 @@
 		"./lib/md2docx/handlers/mermaidHandler": {
 			"require": "./lib/md2docx/handlers/mermaidHandler.js"
 		},
-		"./lib/css/*": "./lib/css/*"
+		"./lib/css/*": "./lib/css/*",
+		"./lib/ran4/*": {
+			"import": "./dist/lib/ran4/*",
+			"require": "./dist/lib/ran4/*"
+		}
 	},
 	"scripts": {
 		"test": "node scripts/run-tests.js",
 		"test:watch": "node --watch scripts/run-tests.js",
+		"build:ran4": "tsc",
+		"test:ran4": "node --import tsx --test test/lib/ran4/*.test.ts",
+		"prepublishOnly": "tsc",
 		"release": "node scripts/release.cjs"
 	},
 	"repository": {
@@ -126,5 +135,10 @@
 		"chokidar": "^4.0.3",
 		"http-server": "^14.1.1",
 		"node-plantuml": "^0.9.0"
+	},
+	"devDependencies": {
+		"@types/node": "^22.0.0",
+		"tsx": "^4.19.0",
+		"typescript": "^5.6.0"
 	}
 }

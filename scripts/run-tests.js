@@ -55,4 +55,29 @@ console.log(`${testFiles.length} test file(s), ${results.filter(r => !r.ok).leng
 if (totalPassed || totalFailed) {
   console.log(`${totalPassed} passed, ${totalFailed} failed (total)`)
 }
-process.exit(totalFailed > 0 ? 1 : 0)
+
+// Run RAN4 TypeScript tests if tsx is available
+let ran4Ok = true
+try {
+  const tsTestDir = path.join(__dirname, '..', 'test', 'lib', 'ran4')
+  if (fs.existsSync(tsTestDir)) {
+    console.log('\n\n── RAN4 TypeScript tests ──\n')
+    try {
+      const output = execSync('node --import tsx --test test/lib/ran4/*.test.ts', {
+        encoding: 'utf8',
+        cwd: path.join(__dirname, '..'),
+        stdio: ['pipe', 'pipe', 'pipe']
+      })
+      process.stdout.write(output)
+    } catch (e) {
+      if (e.stdout) process.stdout.write(e.stdout)
+      if (e.stderr) process.stderr.write(e.stderr)
+      ran4Ok = false
+      totalFailed++
+    }
+  }
+} catch (e) {
+  console.log('  (skipped — tsx not installed)')
+}
+
+process.exit((totalFailed > 0 || !ran4Ok) ? 1 : 0)
