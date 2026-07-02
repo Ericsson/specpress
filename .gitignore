@@ -7,6 +7,9 @@ public
 # output
 output
 
+# TypeScript compiled output
+dist
+
 # temporary test/debug scripts
 test-scripts
 
