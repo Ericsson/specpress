@@ -1,8 +1,7 @@
 // JsonTools.ts — JSON I/O, encoder, schema validation
 
-import { readFileSync, existsSync, writeFileSync, statSync } from "node:fs";
+import { readFileSync, existsSync, writeFileSync, statSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { globSync } from "node:fs";
 import { createRequire } from "node:module";
 import { logger } from "./Logger.js";
 const require = createRequire(import.meta.url);
@@ -79,14 +78,23 @@ export function LoadJsonFileToDict(aJsonFile: string | null | undefined): Record
   return data as Record<string, unknown>;
 }
 
+function findFilesRecursive(dir: string, pattern: RegExp): string[] {
+  const results: string[] = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = join(dir, entry.name);
+    if (entry.isDirectory()) results.push(...findFilesRecursive(fullPath, pattern));
+    else if (pattern.test(entry.name)) results.push(fullPath);
+  }
+  return results;
+}
+
 export function GetAllJsonFilesInFolder(aTopLevelDirectory: string): string[] {
   const dirPath = resolve(aTopLevelDirectory);
   if (!existsSync(dirPath)) {
     throw new Error(`The source path does not exist: ${aTopLevelDirectory}`);
   }
 
-  const pattern = join(dirPath, "**", "*.json");
-  const fileList = globSync(pattern).sort();
+  const fileList = findFilesRecursive(dirPath, /\.json$/i).sort();
   logger.log(`Found ${fileList.length} JSON-files in directory '${aTopLevelDirectory}'`);
   return fileList;
 }
@@ -97,8 +105,8 @@ export function GetJsonFilesByPattern(aRootFolder: string, aPattern: string): st
     throw new Error(`The source path does not exist: ${aRootFolder}`);
   }
 
-  const globPattern = join(dirPath, "**", aPattern);
-  const fileList = globSync(globPattern).sort();
+  const regex = new RegExp('^' + aPattern.replace(/\./g, '\\.').replace(/\*/g, '.*') + '$', 'i');
+  const fileList = findFilesRecursive(dirPath, regex).sort();
   logger.log(`Found ${fileList.length} JSON-files matching '${aPattern}' in '${aRootFolder}'`);
   return fileList;
 }
