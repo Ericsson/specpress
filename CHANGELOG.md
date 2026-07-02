@@ -5,7 +5,7 @@ All notable changes to the SpecPress library will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [3.2.5] - 2025-07-02
+## [3.2.6] - 2025-07-02
 
 ### Added
 
@@ -167,8 +167,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Complete rewrite from original internal tool
 - Modular architecture with separate HTML and DOCX paths
 
-[Unreleased]: https://github.com/Ericsson/specpress/compare/v3.2.5...HEAD
-[3.2.5]: https://github.com/Ericsson/specpress/compare/v3.2.4...v3.2.5
+[Unreleased]: https://github.com/Ericsson/specpress/compare/v3.2.6...HEAD
+[3.2.6]: https://github.com/Ericsson/specpress/compare/v3.2.4...v3.2.6
 [3.2.4]: https://github.com/Ericsson/specpress/compare/v3.2.3...v3.2.4
 [3.2.3]: https://github.com/Ericsson/specpress/releases/tag/v3.2.3
 [3.2.2]: https://github.com/Ericsson/specpress/releases/tag/v3.2.2
