@@ -1,0 +1,55 @@
+# .gitlab-ci.yml — Generate tracked-changes DOCX (DIFF) between two versions.
+#
+# Copy this file to the top level of your specification repository and
+# rename it to ".gitlab-ci.yml". Then configure the variables below in
+# (Settings > CI/CD > Variables) or override them in your version of
+# this file.
+#
+# The rendered DOCX DIFF is available as a downloadable job artifact.
+
+variables:
+  SPEC_INPUT_DIR: "specification" # path to markdown files, relative to repo root
+  SPEC_ROOT: "specification" # specification root for section numbering (set to "" to disable)
+  SPEC_NUMBER: "38XXX" # specification number (e.g., "38413", "23501")
+  BASE_COMMIT: "HEAD~1" # baseline commit (the "before" version)
+  REVISION_COMMIT: "HEAD" # revision commit (the "after" version)
+  AUTHOR_NAME: "Latest changes" # author name attributed to tracked changes
+  BACKEND: "libreoffice" # merge backend: auto, word, libreoffice
+  SPECPRESS_REPO: "https://github.com/Ericsson/specpress.git"
+  SPECPRESS_REF: "main"
+
+stages:
+  - build
+
+docx-diff:
+  stage: build
+  image: node:20
+  before_script:
+    - apt-get update && apt-get install -y --no-install-recommends git libreoffice-writer
+    # Chromium for mermaid diagram rendering
+    - apt-get install -y --no-install-recommends chromium
+    - export CHROME_BIN=$(which chromium)
+  script:
+    - git clone --depth 1 --branch $SPECPRESS_REF $SPECPRESS_REPO /tmp/specpress
+    - cd /tmp/specpress && npm ci --production && cd -
+    - mkdir -p output
+    - COMMIT_DATE=$(git show -s --format=%ci HEAD | awk '{print $1"_"$2}' | tr ':' '-')
+    - SHORT_SHA=$(git rev-parse --short HEAD)
+    - BRANCH_NAME=$(echo $CI_COMMIT_REF_NAME | tr '/' '_')
+    - DOCX_FILE="output/${COMMIT_DATE}_${SPEC_NUMBER}_DIFF_${BRANCH_NAME}_${SHORT_SHA}.docx"
+    - >
+      node /tmp/specpress/lib/cli/docx-diff.js
+      "$SPEC_INPUT_DIR"
+      --output "$DOCX_FILE"
+      --base "$BASE_COMMIT"
+      --revisions "$REVISION_COMMIT"
+      --authors "$AUTHOR_NAME"
+      --backend "$BACKEND"
+      ${SPEC_ROOT:+--spec-root "$SPEC_ROOT"}
+  artifacts:
+    paths:
+      - output/*.docx
+    expire_in: 30 days
+  only:
+    - main
+    - tags
