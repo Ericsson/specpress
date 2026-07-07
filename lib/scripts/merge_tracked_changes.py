@@ -137,28 +137,29 @@ def main():
         smgr = ctx.ServiceManager
         desktop = smgr.createInstanceWithContext('com.sun.star.frame.Desktop', ctx)
 
-        # Open base document
-        base_url = to_url(base_path)
+        # Open revision (new) document — we open the newer version and compare
+        # against the base so that insertions/deletions are correctly oriented.
+        revision_url = to_url(revision_path)
         load_props = (
             PropertyValue('Hidden', 0, True, 0),
             PropertyValue('ReadOnly', 0, False, 0),
         )
-        print(f'Opening base document: {base_path}', file=sys.stderr)
-        base_doc = desktop.loadComponentFromURL(base_url, '_blank', 0, load_props)
-        if base_doc is None:
-            print(f'Failed to open base document: {base_path}', file=sys.stderr)
+        print(f'Opening revision document: {revision_path}', file=sys.stderr)
+        doc = desktop.loadComponentFromURL(revision_url, '_blank', 0, load_props)
+        if doc is None:
+            print(f'Failed to open revision document: {revision_path}', file=sys.stderr)
             sys.exit(1)
-        print('Base document opened.', file=sys.stderr)
+        print('Revision document opened.', file=sys.stderr)
 
-        # Compare with revision document
-        revision_url = to_url(revision_path)
+        # Compare against base (old) document
+        base_url = to_url(base_path)
         dispatch_helper = smgr.createInstanceWithContext(
             'com.sun.star.frame.DispatchHelper', ctx)
 
-        print(f'Comparing with revision: {revision_path}', file=sys.stderr)
-        compare_props = (PropertyValue('URL', 0, revision_url, 0),)
+        print(f'Comparing against base: {base_path}', file=sys.stderr)
+        compare_props = (PropertyValue('URL', 0, base_url, 0),)
         dispatch_helper.executeDispatch(
-            base_doc.getCurrentController().getFrame(),
+            doc.getCurrentController().getFrame(),
             '.uno:CompareDocuments', '', 0, compare_props)
         print('Comparison complete.', file=sys.stderr)
 
@@ -169,8 +170,8 @@ def main():
             PropertyValue('Overwrite', 0, True, 0),
         )
         print(f'Saving to: {output_path}', file=sys.stderr)
-        base_doc.storeToURL(output_url, save_props)
-        base_doc.close(True)
+        doc.storeToURL(output_url, save_props)
+        doc.close(True)
         print('Save complete.', file=sys.stderr)
 
     finally:
