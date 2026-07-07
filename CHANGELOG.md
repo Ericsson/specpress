@@ -175,6 +175,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **LibreOffice merge backend** - Cross-platform alternative to MS Word for DOCX DIFF generation
 - **Automatic author derivation** - When `--authors` is omitted, derives author name from CR cover page data (e.g. `CR0042_Ericsson`)
 - **CI template** for DOCX DIFF (`ci_templates/.gitlab-ci-docx-diff.yml`)
+- **CI template** for CR validation (`ci_templates/.gitlab-ci-validate-cr.yml`) - Blocks merge requests with missing, invalid, or conflicting CR metadata
+- **CI template** for CR finalization (`ci_templates/.gitlab-ci-finalize-cr.yml`) - Renames `CRxxxx.json` to `CRYYYY.json` after merge
 
 ### Fixed
 

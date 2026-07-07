@@ -1,0 +1,102 @@
+# .gitlab-ci-validate-cr.yml — Block merge requests with invalid CR metadata.
+#
+# This job runs on merge requests targeting "main" or "Rel-*" branches and
+# fails (blocking the merge) if any of the following conditions is met:
+#
+#   a) No CRxxxx.json exists in SPEC_ROOT/history/
+#   b) CRxxxx.json does not match the CR cover page schema
+#   c) CRxxxx.json has no "CR" field
+#   d) The "Release" field does not match the target branch (ignored for main)
+#   e) A CRYYYY.json (where YYYY is the zero-padded CR number) already exists
+#      in the history/ folder on the source or target branch
+#
+# Include this file in your .gitlab-ci.yml or copy it to your repository root.
+# Configure the SPEC_ROOT variable to match your specification layout.
+
+variables:
+  SPEC_ROOT: "specification"
+  SPECPRESS_REPO: "https://github.com/Ericsson/specpress.git"
+  SPECPRESS_REF: "main"
+
+stages:
+  - validate
+
+validate-cr:
+  stage: validate
+  image: node:20
+  before_script:
+    - apt-get update && apt-get install -y --no-install-recommends git jq
+    - git clone --depth 1 --branch $SPECPRESS_REF $SPECPRESS_REPO /tmp/specpress
+    - cd /tmp/specpress && npm ci --production && cd -
+  script:
+    - |
+      CR_FILE="${SPEC_ROOT}/history/CRxxxx.json"
+      HISTORY_DIR="${SPEC_ROOT}/history"
+      TARGET="$CI_MERGE_REQUEST_TARGET_BRANCH_NAME"
+
+      # --- (a) CRxxxx.json must exist ---
+      if [ ! -f "$CR_FILE" ]; then
+        echo "ERROR: $CR_FILE not found. A CR metadata file is required for merge requests."
+        exit 1
+      fi
+      echo "✓ $CR_FILE exists"
+
+      # --- (b) CRxxxx.json must match the schema ---
+      VALIDATION=$(node -e "
+        const { loadCRCoverPageData } = require('/tmp/specpress/lib/common/crCoverPageLoader');
+        const path = require('path');
+        const result = loadCRCoverPageData(path.resolve('$CR_FILE'));
+        if (!result.valid) {
+          console.log('ERRORS:' + result.errors.join('; '));
+          process.exit(1);
+        }
+      " 2>&1) || {
+        echo "ERROR: $CR_FILE does not match the schema."
+        echo "$VALIDATION" | grep "^ERRORS:" | sed 's/^ERRORS:/  /'
+        exit 1
+      }
+      echo "✓ Schema validation passed"
+
+      # --- (c) CR field must be present ---
+      CR_NUMBER=$(jq -r '.CR // empty' "$CR_FILE")
+      if [ -z "$CR_NUMBER" ]; then
+        echo "ERROR: $CR_FILE has no \"CR\" field. A CR number is required before merging."
+        exit 1
+      fi
+      echo "✓ CR field present: $CR_NUMBER"
+
+      # --- (d) Release must match target branch (unless target is main) ---
+      if [ "$TARGET" != "main" ]; then
+        RELEASE=$(jq -r '.Release // empty' "$CR_FILE")
+        EXPECTED_BRANCH="Rel-${RELEASE}"
+        if [ "$EXPECTED_BRANCH" != "$TARGET" ]; then
+          echo "ERROR: Release field (Rel-${RELEASE}) does not match target branch (${TARGET})."
+          exit 1
+        fi
+        echo "✓ Release matches target branch: $TARGET"
+      else
+        echo "✓ Target is main — skipping Release check"
+      fi
+
+      # --- (e) CRYYYY.json must not already exist ---
+      CR_PADDED=$(printf "CR%04d" "$CR_NUMBER")
+      FINAL_FILE="${HISTORY_DIR}/${CR_PADDED}.json"
+
+      # Check on source branch (current working copy)
+      if [ -f "$FINAL_FILE" ]; then
+        echo "ERROR: $FINAL_FILE already exists on the source branch. CR number $CR_NUMBER is already used."
+        exit 1
+      fi
+
+      # Check on target branch
+      if git cat-file -e "origin/${TARGET}:${FINAL_FILE}" 2>/dev/null; then
+        echo "ERROR: $FINAL_FILE already exists on the target branch (${TARGET}). CR number $CR_NUMBER is already used."
+        exit 1
+      fi
+      echo "✓ ${CR_PADDED}.json does not exist on source or target branch"
+
+      echo ""
+      echo "=== All CR validation checks passed ==="
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "main"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME =~ /^Rel-\d+$/

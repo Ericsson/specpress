@@ -1,0 +1,76 @@
+# .gitlab-ci-finalize-cr.yml — Rename CRxxxx.json to CRYYYY.json after merge.
+#
+# This job runs on pushes to "main" or "Rel-*" branches. If a CRxxxx.json file
+# exists in SPEC_ROOT/history/, it reads the CR number, renames the file to
+# CR0042.json (zero-padded), and pushes the commit back to the branch.
+#
+# This is intended to run after a merge request has been merged. The validate-cr
+# job (in .gitlab-ci-validate-cr.yml) ensures the CR metadata is valid before
+# the merge is allowed.
+#
+# Requirements:
+#   - The CI runner must have push access to the repository. Configure a
+#     project access token or deploy key with write access and set it as
+#     CI_PUSH_TOKEN variable (Settings > CI/CD > Variables).
+#   - Set CI_PUSH_USER to the username associated with the token (or use
+#     "gitlab-ci-token" for project access tokens).
+#
+# Configure the SPEC_ROOT variable to match your specification layout.
+
+variables:
+  SPEC_ROOT: "specification"
+  CI_PUSH_USER: "gitlab-ci-token"
+  # CI_PUSH_TOKEN: set in CI/CD variables (masked, protected)
+
+stages:
+  - finalize
+
+finalize-cr:
+  stage: finalize
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache git jq
+  script:
+    - |
+      CR_FILE="${SPEC_ROOT}/history/CRxxxx.json"
+
+      # Only proceed if CRxxxx.json exists (freshly merged CR branch)
+      if [ ! -f "$CR_FILE" ]; then
+        echo "No $CR_FILE found — nothing to finalize."
+        exit 0
+      fi
+
+      # Read CR number
+      CR_NUMBER=$(jq -r '.CR // empty' "$CR_FILE")
+      if [ -z "$CR_NUMBER" ]; then
+        echo "ERROR: $CR_FILE has no CR field — cannot rename."
+        exit 1
+      fi
+
+      # Build target filename
+      CR_PADDED=$(printf "CR%04d" "$CR_NUMBER")
+      TARGET_FILE="${SPEC_ROOT}/history/${CR_PADDED}.json"
+
+      # Safety check: target must not already exist
+      if [ -f "$TARGET_FILE" ]; then
+        echo "ERROR: $TARGET_FILE already exists — CR number conflict."
+        exit 1
+      fi
+
+      echo "Renaming $CR_FILE → $TARGET_FILE"
+      git mv "$CR_FILE" "$TARGET_FILE"
+
+      # Configure git for the automated commit
+      git config user.email "ci@specpress"
+      git config user.name "SpecPress CI"
+
+      git commit -m "Finalize ${CR_PADDED}: rename CRxxxx.json → ${CR_PADDED}.json"
+
+      # Push back to the branch
+      REMOTE_URL="https://${CI_PUSH_USER}:${CI_PUSH_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git"
+      git push "$REMOTE_URL" HEAD:"$CI_COMMIT_REF_NAME"
+
+      echo "✓ ${CR_PADDED}.json committed and pushed."
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_REF_NAME == "main"
+    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_REF_NAME =~ /^Rel-\d+$/

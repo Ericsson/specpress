@@ -87,6 +87,8 @@ The `ci_templates/` directory contains ready-to-use GitLab CI configurations:
 - **`.gitlab-ci-export-docx.yml`** — Builds a DOCX artifact from your spec on every push to main or tag. Configure `SPEC_INPUT_DIR`, `SPEC_ROOT`, and `DOCX_OUTPUT` variables.
 - **`.gitlab-ci-export-html.yml`** — Builds HTML and publishes it via GitLab Pages. Configure `SPEC_INPUT_DIR`.
 - **`.gitlab-ci-docx-diff.yml`** — Generates a tracked-changes DOCX DIFF between two versions using LibreOffice. Configure `BASE_COMMIT`, `REVISION_COMMIT`, and optionally `AUTHOR_NAME`.
+- **`.gitlab-ci-validate-cr.yml`** — Blocks merge requests targeting `main` or `Rel-*` branches if CR metadata is missing, invalid, or conflicts with existing CRs.
+- **`.gitlab-ci-finalize-cr.yml`** — After a CR branch is merged, renames `CRxxxx.json` to `CR0042.json` (using the CR number) and pushes the commit. Requires a CI push token.
 
 To use them, copy the relevant file into your specification repository as `.gitlab-ci.yml` (or include it from your existing pipeline). The templates clone specpress at build time, so no local installation is needed in the CI runner.
 
