@@ -4,15 +4,16 @@ Merge two DOCX files into a tracked-changes document using LibreOffice UNO API.
 Usage (invoked by docxMerge.js via LibreOffice's bundled Python):
   python merge_tracked_changes.py <base.docx> <revision.docx> <output.docx> <authorName> [<sofficePath>]
 
-The script starts a headless LibreOffice instance, opens the base document,
-compares it against the revision document, and saves the result with tracked
-changes attributed to the given author.
+The script starts a headless LibreOffice instance with a temporary user profile
+(to set the tracked-changes author), opens the base document, compares it
+against the revision document, and saves the result.
 """
 import sys
 import os
 import subprocess
 import time
-import signal
+import shutil
+import tempfile
 
 def to_url(filepath):
     """Convert a filesystem path to a file:// URL for UNO."""
@@ -23,10 +24,8 @@ def to_url(filepath):
 
 def find_soffice():
     """Find soffice executable from environment or common paths."""
-    # Check if passed as argument
     if len(sys.argv) > 5:
         return sys.argv[5]
-    # Check UNO_PATH environment variable
     uno_path = os.environ.get('UNO_PATH', '')
     if uno_path:
         candidate = os.path.join(uno_path, 'soffice.exe' if sys.platform == 'win32' else 'soffice')
@@ -34,8 +33,28 @@ def find_soffice():
             return candidate
     return 'soffice'
 
-def start_libreoffice(soffice_path, pipe_name):
-    """Start a headless LibreOffice instance listening on a named pipe."""
+def create_temp_profile(author_name):
+    """Create a temporary LibreOffice user profile with the author name pre-set."""
+    profile_dir = tempfile.mkdtemp(prefix='specpress_lo_')
+    user_dir = os.path.join(profile_dir, 'user')
+    os.makedirs(user_dir, exist_ok=True)
+
+    # Write registrymodifications.xcu with the author name
+    xcu_content = f'''<?xml version="1.0" encoding="UTF-8"?>
+<oor:items xmlns:oor="http://openoffice.org/2001/registry" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<item oor:path="/org.openoffice.UserProfile/Data"><prop oor:name="givenname" oor:op="fuse"><value>{author_name}</value></prop></item>
+<item oor:path="/org.openoffice.UserProfile/Data"><prop oor:name="sn" oor:op="fuse"><value></value></prop></item>
+<item oor:path="/org.openoffice.UserProfile/Data"><prop oor:name="initials" oor:op="fuse"><value>{author_name[:2] if author_name else "SP"}</value></prop></item>
+</oor:items>
+'''
+    xcu_path = os.path.join(user_dir, 'registrymodifications.xcu')
+    with open(xcu_path, 'w', encoding='utf-8') as f:
+        f.write(xcu_content)
+
+    return profile_dir
+
+def start_libreoffice(soffice_path, pipe_name, profile_url):
+    """Start a headless LibreOffice instance with a custom profile listening on a named pipe."""
     args = [
         soffice_path,
         '--headless',
@@ -45,6 +64,7 @@ def start_libreoffice(soffice_path, pipe_name):
         '--nologo',
         '--nofirststartwizard',
         '--norestore',
+        f'-env:UserInstallation={profile_url}',
         f'--accept=pipe,name={pipe_name};urp;StarOffice.ComponentContext'
     ]
     proc = subprocess.Popen(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -91,12 +111,15 @@ def main():
     import uno
     from com.sun.star.beans import PropertyValue
 
-    # Start LibreOffice with a unique pipe name
+    # Create a temporary profile with the author name pre-configured
+    profile_dir = create_temp_profile(author_name)
+    profile_url = to_url(profile_dir)
+
     pipe_name = f'specpress_merge_{os.getpid()}'
     soffice_path = find_soffice()
     print(f'Starting LibreOffice: {soffice_path}', file=sys.stderr)
     print(f'Pipe name: {pipe_name}', file=sys.stderr)
-    lo_proc = start_libreoffice(soffice_path, pipe_name)
+    lo_proc = start_libreoffice(soffice_path, pipe_name, profile_url)
     print(f'LibreOffice PID: {lo_proc.pid}', file=sys.stderr)
 
     try:
@@ -106,83 +129,48 @@ def main():
         smgr = ctx.ServiceManager
         desktop = smgr.createInstanceWithContext('com.sun.star.frame.Desktop', ctx)
 
-        # Set redline author via user profile configuration
-        config_access = None
-        orig_first = None
-        orig_last = None
-        config_provider = smgr.createInstanceWithContext(
-            'com.sun.star.configuration.ConfigurationProvider', ctx)
-        if config_provider is not None:
-            try:
-                config_args = (PropertyValue('nodepath', 0, '/org.openoffice.UserProfile/Data', 0),)
-                config_access = config_provider.createInstanceWithArguments(
-                    'com.sun.star.configuration.ConfigurationUpdateAccess', config_args)
-                orig_first = config_access.getByName('givenname')
-                orig_last = config_access.getByName('sn')
-                config_access.replaceByName('givenname', author_name)
-                config_access.replaceByName('sn', '')
-                config_access.commitChanges()
-                print(f'Author set to: {author_name}', file=sys.stderr)
-            except Exception as e:
-                print(f'Warning: Could not set author via config: {e}', file=sys.stderr)
-                config_access = None
-        else:
-            print('Warning: ConfigurationProvider is None, cannot set author', file=sys.stderr)
+        # Open base document
+        base_url = to_url(base_path)
+        load_props = (
+            PropertyValue('Hidden', 0, True, 0),
+            PropertyValue('ReadOnly', 0, False, 0),
+        )
+        print(f'Opening base document: {base_path}', file=sys.stderr)
+        base_doc = desktop.loadComponentFromURL(base_url, '_blank', 0, load_props)
+        if base_doc is None:
+            print(f'Failed to open base document: {base_path}', file=sys.stderr)
+            sys.exit(1)
+        print('Base document opened.', file=sys.stderr)
 
-        try:
-            # Open base document
-            base_url = to_url(base_path)
-            load_props = (
-                PropertyValue('Hidden', 0, True, 0),
-                PropertyValue('ReadOnly', 0, False, 0),
-            )
-            print(f'Opening base document: {base_path}', file=sys.stderr)
-            base_doc = desktop.loadComponentFromURL(base_url, '_blank', 0, load_props)
-            if base_doc is None:
-                print(f'Failed to open base document: {base_path}', file=sys.stderr)
-                sys.exit(1)
-            print('Base document opened.', file=sys.stderr)
+        # Compare with revision document
+        revision_url = to_url(revision_path)
+        dispatch_helper = smgr.createInstanceWithContext(
+            'com.sun.star.frame.DispatchHelper', ctx)
 
-            # Compare with revision document
-            revision_url = to_url(revision_path)
-            dispatch_helper = smgr.createInstanceWithContext(
-                'com.sun.star.frame.DispatchHelper', ctx)
+        print(f'Comparing with revision: {revision_path}', file=sys.stderr)
+        compare_props = (PropertyValue('URL', 0, revision_url, 0),)
+        dispatch_helper.executeDispatch(
+            base_doc.getCurrentController().getFrame(),
+            '.uno:CompareDocuments', '', 0, compare_props)
+        print('Comparison complete.', file=sys.stderr)
 
-            print(f'Comparing with revision: {revision_path}', file=sys.stderr)
-            compare_props = (PropertyValue('URL', 0, revision_url, 0),)
-            dispatch_helper.executeDispatch(
-                base_doc.getCurrentController().getFrame(),
-                '.uno:CompareDocuments', '', 0, compare_props)
-            print('Comparison complete.', file=sys.stderr)
+        # Save as output
+        output_url = to_url(output_path)
+        save_props = (
+            PropertyValue('FilterName', 0, 'MS Word 2007 XML', 0),
+            PropertyValue('Overwrite', 0, True, 0),
+        )
+        print(f'Saving to: {output_path}', file=sys.stderr)
+        base_doc.storeToURL(output_url, save_props)
+        base_doc.close(True)
+        print('Save complete.', file=sys.stderr)
 
-            # Save as output
-            output_url = to_url(output_path)
-            save_props = (
-                PropertyValue('FilterName', 0, 'MS Word 2007 XML', 0),
-                PropertyValue('Overwrite', 0, True, 0),
-            )
-            print(f'Saving to: {output_path}', file=sys.stderr)
-            base_doc.storeToURL(output_url, save_props)
-            base_doc.close(True)
-            print('Save complete.', file=sys.stderr)
-
-            print('Success')
-
-        finally:
-            # Restore original user profile if we changed it
-            if config_access is not None:
-                try:
-                    config_access.replaceByName('givenname', orig_first)
-                    config_access.replaceByName('sn', orig_last)
-                    config_access.commitChanges()
-                except Exception:
-                    pass
+        print('Success')
 
     finally:
         # Terminate the LibreOffice process tree
         try:
             if sys.platform == 'win32':
-                # On Windows, terminate the entire process tree
                 subprocess.call(['taskkill', '/F', '/T', '/PID', str(lo_proc.pid)],
                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             else:
@@ -193,6 +181,11 @@ def main():
                 lo_proc.kill()
             except Exception:
                 pass
+        # Clean up temporary profile
+        try:
+            shutil.rmtree(profile_dir, ignore_errors=True)
+        except Exception:
+            pass
 
 if __name__ == '__main__':
     main()
