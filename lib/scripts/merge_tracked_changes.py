@@ -4,16 +4,17 @@ Merge two DOCX files into a tracked-changes document using LibreOffice UNO API.
 Usage (invoked by docxMerge.js via LibreOffice's bundled Python):
   python merge_tracked_changes.py <base.docx> <revision.docx> <output.docx> <authorName> [<sofficePath>]
 
-The script starts a headless LibreOffice instance with a temporary user profile
-(to set the tracked-changes author), opens the base document, compares it
-against the revision document, and saves the result.
+The script starts a headless LibreOffice instance, opens the base document,
+compares it against the revision document, saves the result, then post-processes
+the DOCX to set the tracked-changes author name.
 """
 import sys
 import os
 import subprocess
 import time
-import shutil
 import tempfile
+import shutil
+import zipfile
 
 def to_url(filepath):
     """Convert a filesystem path to a file:// URL for UNO."""
@@ -33,28 +34,8 @@ def find_soffice():
             return candidate
     return 'soffice'
 
-def create_temp_profile(author_name):
-    """Create a temporary LibreOffice user profile with the author name pre-set."""
-    profile_dir = tempfile.mkdtemp(prefix='specpress_lo_')
-    user_dir = os.path.join(profile_dir, 'user')
-    os.makedirs(user_dir, exist_ok=True)
-
-    # Write registrymodifications.xcu with the author name
-    xcu_content = f'''<?xml version="1.0" encoding="UTF-8"?>
-<oor:items xmlns:oor="http://openoffice.org/2001/registry" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-<item oor:path="/org.openoffice.UserProfile/Data"><prop oor:name="givenname" oor:op="fuse"><value>{author_name}</value></prop></item>
-<item oor:path="/org.openoffice.UserProfile/Data"><prop oor:name="sn" oor:op="fuse"><value></value></prop></item>
-<item oor:path="/org.openoffice.UserProfile/Data"><prop oor:name="initials" oor:op="fuse"><value>{author_name[:2] if author_name else "SP"}</value></prop></item>
-</oor:items>
-'''
-    xcu_path = os.path.join(user_dir, 'registrymodifications.xcu')
-    with open(xcu_path, 'w', encoding='utf-8') as f:
-        f.write(xcu_content)
-
-    return profile_dir
-
-def start_libreoffice(soffice_path, pipe_name, profile_url):
-    """Start a headless LibreOffice instance with a custom profile listening on a named pipe."""
+def start_libreoffice(soffice_path, pipe_name):
+    """Start a headless LibreOffice instance listening on a named pipe."""
     args = [
         soffice_path,
         '--headless',
@@ -64,7 +45,6 @@ def start_libreoffice(soffice_path, pipe_name, profile_url):
         '--nologo',
         '--nofirststartwizard',
         '--norestore',
-        f'-env:UserInstallation={profile_url}',
         f'--accept=pipe,name={pipe_name};urp;StarOffice.ComponentContext'
     ]
     proc = subprocess.Popen(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -93,6 +73,38 @@ def connect_to_libreoffice(pipe_name, timeout=30):
         raise RuntimeError(f'Could not connect to LibreOffice within {timeout}s')
     return ctx
 
+def fix_docx_author(docx_path, author_name):
+    """Post-process a DOCX file to replace all tracked-change author names."""
+    # DOCX is a ZIP containing XML files. Tracked changes use w:author attributes
+    # in word/document.xml (and possibly word/footnotes.xml, word/endnotes.xml).
+    tmp_path = docx_path + '.tmp'
+    W_NS = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
+    author_attr = f'{{{W_NS}}}author'
+    count = 0
+
+    with zipfile.ZipFile(docx_path, 'r') as zin, zipfile.ZipFile(tmp_path, 'w') as zout:
+        for item in zin.infolist():
+            data = zin.read(item.filename)
+            if item.filename.startswith('word/') and item.filename.endswith('.xml'):
+                import xml.etree.ElementTree as ET
+                try:
+                    root = ET.fromstring(data)
+                    # Find all elements with w:author attribute (w:ins, w:del, w:rPrChange, etc.)
+                    modified = False
+                    for elem in root.iter():
+                        if author_attr in elem.attrib:
+                            elem.attrib[author_attr] = author_name
+                            modified = True
+                            count += 1
+                    if modified:
+                        data = ET.tostring(root, encoding='UTF-8', xml_declaration=True)
+                except ET.ParseError:
+                    pass  # Not valid XML, keep as-is
+            zout.writestr(item, data)
+
+    os.replace(tmp_path, docx_path)
+    return count
+
 def main():
     if len(sys.argv) < 5:
         print('Usage: merge_tracked_changes.py <base.docx> <revision.docx> <output.docx> <authorName> [<sofficePath>]', file=sys.stderr)
@@ -111,15 +123,11 @@ def main():
     import uno
     from com.sun.star.beans import PropertyValue
 
-    # Create a temporary profile with the author name pre-configured
-    profile_dir = create_temp_profile(author_name)
-    profile_url = to_url(profile_dir)
-
     pipe_name = f'specpress_merge_{os.getpid()}'
     soffice_path = find_soffice()
     print(f'Starting LibreOffice: {soffice_path}', file=sys.stderr)
     print(f'Pipe name: {pipe_name}', file=sys.stderr)
-    lo_proc = start_libreoffice(soffice_path, pipe_name, profile_url)
+    lo_proc = start_libreoffice(soffice_path, pipe_name)
     print(f'LibreOffice PID: {lo_proc.pid}', file=sys.stderr)
 
     try:
@@ -165,8 +173,6 @@ def main():
         base_doc.close(True)
         print('Save complete.', file=sys.stderr)
 
-        print('Success')
-
     finally:
         # Terminate the LibreOffice process tree
         try:
@@ -181,11 +187,13 @@ def main():
                 lo_proc.kill()
             except Exception:
                 pass
-        # Clean up temporary profile
-        try:
-            shutil.rmtree(profile_dir, ignore_errors=True)
-        except Exception:
-            pass
+
+    # Post-process the DOCX to set the correct author name on all tracked changes
+    print(f'Setting author to: {author_name}', file=sys.stderr)
+    count = fix_docx_author(output_path, author_name)
+    print(f'Updated {count} tracked-change entries.', file=sys.stderr)
+
+    print('Success')
 
 if __name__ == '__main__':
     main()
