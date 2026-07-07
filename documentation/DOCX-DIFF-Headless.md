@@ -369,36 +369,36 @@ The following tests move from SpecPressExt to specpress alongside the code they 
 - **insertOmittedMarkers test**: Remove the `vscode` mock (no longer needed since the function moves to specpress). Remove `formatExportTimestamp` tests from this file.
 - **verify-docx-diff-lib.js**: No changes needed (pure Node.js, no VS Code dependency).
 
-### New tests to add in specpress
+### Tests added in specpress
 
-After the refactoring, the following components need new test coverage:
-
-| Component | Test file | Coverage needed |
+| Component | Test file | Tests |
 |---|---|---|
-| `extractFilesFromCommit` | `test/lib/common/gitHelpers.test.js` | Tar parsing, file filtering by extension, path normalization, handling of missing paths in commit |
-| `makeCachedFileResolver` | `test/lib/common/gitHelpers.test.js` | Cache hit, cache miss (fallback to fs), case-insensitive path matching |
-| `makeCachedTextReader` | `test/lib/common/gitHelpers.test.js` | Buffer-to-string conversion, cache hit/miss |
-| `mergeDocxVersions` (Word) | `test/lib/docx-diff/docxMerge-word.test.js` | Correct VBScript invocation args, error handling (Word not found, VBScript failure), debug mode temp file retention |
-| `mergeDocxVersions` (LibreOffice) | `test/lib/docx-diff/docxMerge-libre.test.js` | Correct soffice invocation, error handling (LibreOffice not found), Python script args |
-| `detectBackends` | `test/lib/common/docxMerge.test.js` | Detection on Windows (registry), detection on Linux (common paths), both missing |
-| `docx-diff.js` CLI | `test/lib/docx-diff/cli.test.js` | Argument parsing, version/author count mismatch error, missing repo error, `local` keyword handling |
+| `extractFilesFromCommit` | `test/lib/common/gitHelpers.test.js` | 9 tests: tar parsing, file filtering, path normalization, missing paths |
+| `makeCachedFileResolver` | `test/lib/common/gitHelpers.test.js` | 4 tests: cache hit, case-insensitive, slash normalization, fs fallback |
+| `makeCachedTextReader` | `test/lib/common/gitHelpers.test.js` | 5 tests: string match, Buffer conversion, case-insensitive, fs fallback |
+| `mergeDocxVersions` | `test/lib/common/docxMerge.test.js` | 5 tests: validation (empty/null revisions), backend dispatch (word/libre/auto) |
+| `detectBackends` / `findWinword` / `findLibreOffice` | `test/lib/common/docxMerge.test.js` | 6 tests: detection, type checks, platform behavior |
+| `docx-diff.js` CLI | `test/lib/cli/docx-diff-cli.test.js` | 11 tests: argument parsing, multi-value flags, defaults |
+| LibreOffice e2e | `test/lib/docx-diff/docx-diff-libre-e2e.test.js` | Full e2e (auto-skipped when not installed) |
+| `insertOmittedMarkers` | `test/lib/common/insertOmittedMarkers.test.js` | 15 tests (moved from SpecPressExt) |
 
 ### Test coverage analysis after refactoring
 
-| Component | Current coverage | After refactoring |
-|---|---|---|
-| `insertOmittedMarkers` | ✅ 14 unit tests (SpecPressExt) | ✅ Same tests, moved to specpress |
-| `extractFilesFromCommit` | ❌ No unit tests (only exercised by e2e) | ⚠️ Needs new unit tests |
-| `makeCachedFileResolver/TextReader` | ❌ No unit tests (only exercised by e2e) | ⚠️ Needs new unit tests |
-| VBScript merge (Word) | ✅ e2e test with 4 versions | ✅ Same e2e, moved to specpress |
-| LibreOffice merge | ❌ Does not exist yet | ⚠️ Needs new e2e test |
-| `mergeDocxVersions` unified API | ❌ Does not exist yet | ⚠️ Needs unit tests for dispatch logic |
-| `detectBackends` | ❌ Does not exist yet | ⚠️ Needs unit tests |
-| CLI argument parsing | ❌ Does not exist yet | ⚠️ Needs unit tests |
-| DOCX generation per version | ✅ Covered by existing md2docx tests | ✅ No change needed |
-| Mermaid rendering (headless) | ✅ Covered by mermaidDocx.test.js | ✅ No change needed |
-| `collectFilesFromCommit` | ❌ No unit tests | ⚠️ Pre-existing gap (consider adding) |
-| `concatenateFiles` | ✅ Covered by specProcessor tests | ✅ No change needed |
+| Component | Coverage |
+|---|---|
+| `insertOmittedMarkers` | ✅ 15 unit tests (`test/lib/common/insertOmittedMarkers.test.js`) |
+| `extractFilesFromCommit` | ✅ 9 unit tests (`test/lib/common/gitHelpers.test.js`) |
+| `makeCachedFileResolver` | ✅ 4 unit tests (`test/lib/common/gitHelpers.test.js`) |
+| `makeCachedTextReader` | ✅ 5 unit tests (`test/lib/common/gitHelpers.test.js`) |
+| VBScript merge (Word) | ✅ e2e test with 4 versions (`test/lib/docx-diff/docx-diff-e2e.test.js`) |
+| LibreOffice merge | ✅ e2e test with 2 versions (`test/lib/docx-diff/docx-diff-libre-e2e.test.js`, auto-skipped when not installed) |
+| `mergeDocxVersions` unified API | ✅ 5 unit tests for dispatch/validation (`test/lib/common/docxMerge.test.js`) |
+| `detectBackends` / `findWinword` / `findLibreOffice` | ✅ 6 unit tests (`test/lib/common/docxMerge.test.js`) |
+| CLI argument parsing | ✅ 11 unit tests (`test/lib/cli/docx-diff-cli.test.js`) |
+| DOCX generation per version | ✅ Covered by existing md2docx tests |
+| Mermaid rendering (headless) | ✅ Covered by mermaidDocx.test.js |
+| `collectFilesFromCommit` | ✅ 12 unit tests (`test/lib/common/gitHelpers.test.js`) — directory paths, file paths, filtering, deduplication, repo root, deleted directories |
+| `concatenateFiles` | ✅ Covered by specProcessor tests |
 
 ### Testing the `extractFilesFromCommit` function
 
