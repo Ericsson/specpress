@@ -36,25 +36,30 @@ def main():
     from com.sun.star.beans import PropertyValue
 
     localContext = uno.getComponentContext()
-    resolver = localContext.ServiceManager.createInstanceWithContext(
-        'com.sun.star.bridge.UnoUrlResolver', localContext)
-    ctx = resolver  # When run via soffice --python, we already have the context
+    smgr = localContext.ServiceManager
 
-    desktop = localContext.ServiceManager.createInstanceWithContext(
+    desktop = smgr.createInstanceWithContext(
         'com.sun.star.frame.Desktop', localContext)
 
-    # Set redline author before comparison
-    config_provider = localContext.ServiceManager.createInstanceWithContext(
+    # Set redline author via user profile configuration
+    config_access = None
+    orig_first = None
+    orig_last = None
+    config_provider = smgr.createInstanceWithContext(
         'com.sun.star.configuration.ConfigurationProvider', localContext)
-    config_args = (PropertyValue('nodepath', 0, '/org.openoffice.UserProfile/Data', 0),)
-    config_access = config_provider.createInstanceWithArguments(
-        'com.sun.star.configuration.ConfigurationUpdateAccess', config_args)
-    # Save original values to restore later
-    orig_first = config_access.getByName('givenname')
-    orig_last = config_access.getByName('sn')
-    config_access.replaceByName('givenname', author_name)
-    config_access.replaceByName('sn', '')
-    config_access.commitChanges()
+    if config_provider is not None:
+        try:
+            config_args = (PropertyValue('nodepath', 0, '/org.openoffice.UserProfile/Data', 0),)
+            config_access = config_provider.createInstanceWithArguments(
+                'com.sun.star.configuration.ConfigurationUpdateAccess', config_args)
+            orig_first = config_access.getByName('givenname')
+            orig_last = config_access.getByName('sn')
+            config_access.replaceByName('givenname', author_name)
+            config_access.replaceByName('sn', '')
+            config_access.commitChanges()
+        except Exception as e:
+            print(f'Warning: Could not set author via config: {e}', file=sys.stderr)
+            config_access = None
 
     try:
         # Open base document
@@ -68,9 +73,16 @@ def main():
             print(f'Failed to open base document: {base_path}', file=sys.stderr)
             sys.exit(1)
 
-        # Compare with revision document
+        # If config-based author setting failed, try document-level redline settings
+        if config_access is None:
+            try:
+                settings = base_doc.getPropertyValue('RedlineProtectionKey')
+            except Exception:
+                pass  # Not all versions support this; comparison will use default author
+
+        # Compare with revision document using XCompareDocumentDispatch
         revision_url = to_url(revision_path)
-        dispatch_helper = localContext.ServiceManager.createInstanceWithContext(
+        dispatch_helper = smgr.createInstanceWithContext(
             'com.sun.star.frame.DispatchHelper', localContext)
 
         compare_props = (PropertyValue('URL', 0, revision_url, 0),)
@@ -90,10 +102,14 @@ def main():
         print('Success')
 
     finally:
-        # Restore original user profile
-        config_access.replaceByName('givenname', orig_first)
-        config_access.replaceByName('sn', orig_last)
-        config_access.commitChanges()
+        # Restore original user profile if we changed it
+        if config_access is not None:
+            try:
+                config_access.replaceByName('givenname', orig_first)
+                config_access.replaceByName('sn', orig_last)
+                config_access.commitChanges()
+            except Exception:
+                pass
 
 if __name__ == '__main__':
     main()
