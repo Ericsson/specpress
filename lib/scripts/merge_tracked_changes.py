@@ -179,12 +179,20 @@ def main():
                     pass
 
     finally:
-        # Terminate the LibreOffice process
+        # Terminate the LibreOffice process tree
         try:
-            lo_proc.terminate()
-            lo_proc.wait(timeout=10)
+            if sys.platform == 'win32':
+                # On Windows, terminate the entire process tree
+                subprocess.call(['taskkill', '/F', '/T', '/PID', str(lo_proc.pid)],
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            else:
+                lo_proc.terminate()
+                lo_proc.wait(timeout=10)
         except Exception:
-            lo_proc.kill()
+            try:
+                lo_proc.kill()
+            except Exception:
+                pass
 
 if __name__ == '__main__':
     main()
