@@ -154,6 +154,81 @@ Pipeline steps:
 4. Call `mergeDocxVersions(baseDocx, revisions, outputPath)` to produce the tracked-changes DOCX
 5. Clean up temp files
 
+### Manual Testing (CLI)
+
+To test the DOCX DIFF functionality locally (e.g. on a Linux machine with LibreOffice), clone the specpress repo on the `libreoffice-docx-diff` branch and run the CLI from within your specification repository.
+
+#### Full pipeline (markdown → DOCX → merge)
+
+This simulates what the CI pipeline does: generates DOCX from markdown sources for both versions, then merges them with tracked changes.
+
+```bash
+# Clone specpress and install dependencies
+git clone -b libreoffice-docx-diff https://github.com/Ericsson/specpress.git /tmp/specpress
+cd /tmp/specpress && npm install && cd -
+
+# From within your specification repository:
+cd /path/to/your/spec-repo
+
+# Find the merge-base (where your CR branch diverged from main)
+BASE=$(git merge-base HEAD origin/main)
+
+# Generate DOCX DIFF comparing the merge-base against the current working copy
+node /tmp/specpress/lib/cli/docx-diff.js \
+  specification/ \
+  --output diff-output.docx \
+  --base "$BASE" \
+  --revisions local \
+  --authors "CR changes" \
+  --backend libreoffice \
+  --spec-root specification/ \
+  --cr-cover-page-data specification/history/CRxxxx.json
+```
+
+Key options:
+
+- `--revisions local` — uses the current working copy as the "after" version (no need to commit first)
+- `--revisions HEAD` — uses the latest commit (working copy must be clean)
+- `--base` — any git ref: a commit hash, `HEAD~5`, a tag, or the output of `git merge-base`
+- `--backend libreoffice` — forces LibreOffice (omit to auto-detect)
+- `--cr-cover-page-data` — path to the CR JSON file for the cover page (omit for no cover page)
+- `--front-page-data` — path to the front page JSON (used when `--cr-cover-page-data` is absent)
+
+#### Merge step only (two existing DOCX files)
+
+If you already have two DOCX files and just want to test the LibreOffice merge in isolation:
+
+```bash
+# Using LibreOffice's bundled Python (has UNO bindings)
+/usr/lib/libreoffice/program/python \
+  /tmp/specpress/lib/scripts/merge_tracked_changes.py \
+  base.docx revision.docx output.docx "Author Name"
+```
+
+Alternatively, if `soffice --python` is supported (LibreOffice 7.4+):
+
+```bash
+soffice --headless --invisible --python \
+  /tmp/specpress/lib/scripts/merge_tracked_changes.py \
+  base.docx revision.docx output.docx "Author Name"
+```
+
+The script prints `Success` on stdout when the merge completes. The output DOCX will contain tracked changes (insertions/deletions) attributed to the given author name.
+
+#### Prerequisites
+
+- **Node.js 16+** — for the CLI and DOCX generation
+- **LibreOffice Writer** — `apt install libreoffice-writer` (Debian/Ubuntu) or equivalent
+- **Chrome/Chromium** — only needed if your spec contains mermaid diagrams (`apt install chromium`)
+- **git** — for extracting files from commits
+
+On Ubuntu/Debian, a minimal install for testing:
+
+```bash
+apt-get install -y git libreoffice-writer chromium-browser
+export CHROME_BIN=$(which chromium-browser)
+```
+
 ### Refactored SpecPressExt
 
 After the move, `SpecPressExt/src/vscode/compareDocx.js` becomes a thin UI wrapper that:
