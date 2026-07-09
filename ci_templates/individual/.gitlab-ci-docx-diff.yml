@@ -31,7 +31,7 @@ docx-diff:
     - export CHROME_BIN=$(which chromium)
   script:
     - git clone --depth 1 --branch $SPECPRESS_REF $SPECPRESS_REPO /tmp/specpress
-    - cd /tmp/specpress && npm ci --production && cd -
+    - cd /tmp/specpress && npm ci --omit=dev && cd -
     - mkdir -p output
     - COMMIT_DATE=$(git show -s --format=%ci HEAD | awk '{print $1"_"$2}' | tr ':' '-')
     - SHORT_SHA=$(git rev-parse --short HEAD)

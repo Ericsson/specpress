@@ -27,7 +27,7 @@ validate-cr:
   before_script:
     - apt-get update && apt-get install -y --no-install-recommends git jq
     - git clone --depth 1 --branch $SPECPRESS_REF $SPECPRESS_REPO /tmp/specpress
-    - cd /tmp/specpress && npm ci --production && cd -
+    - cd /tmp/specpress && npm ci --omit=dev && cd -
   script:
     - |
       CR_FILE="${SPEC_ROOT}/history/CRxxxx.json"
