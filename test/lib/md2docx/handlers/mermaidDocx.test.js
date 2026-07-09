@@ -23,6 +23,22 @@ async function test(name, fn) {
 
 const MOCK_SVG = '<svg viewBox="0 0 200 100" xmlns="http://www.w3.org/2000/svg"><text>mock</text></svg>'
 
+// Minimal valid 1x1 red PNG (the hardcoded small fallback in md2docx.js)
+const SMALL_FALLBACK_PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVQI12NgAAIABQABNjN9GQAAAABJRU5ErkJggg==', 'base64')
+
+// Minimal valid 10x10 white PNG — used as a mock "real" PNG from the renderer
+// PNG signature + IHDR(10,10,8bit,RGB) + IDAT(compressed white pixels) + IEND
+const MOCK_PNG = Buffer.from(
+  '89504e470d0a1a0a' +                          // PNG signature
+  '0000000d49484452' + '0000000a0000000a' +      // IHDR length + type + width=10 height=10
+  '0802000000' + '3d9ffb5e' +                    // bit depth=8, colorType=2(RGB), crc
+  '0000001f49444154' +                           // IDAT length + type
+  '789c6260f8cf' + 'c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c000' + // compressed white pixels
+  '00000000' +                                   // IDAT crc (not validated by JSZip)
+  '0000000049454e44ae426082',                    // IEND
+  'hex'
+)
+
 const MERMAID_MD = `# Heading
 
 \`\`\`mermaid
@@ -54,7 +70,7 @@ async function run() {
   console.log('mermaid DOCX embedding')
 
   await test('mermaid fence is embedded as SVG image via mermaidRenderer', async () => {
-    const mockRenderer = async (codes) => codes.map(() => MOCK_SVG)
+    const mockRenderer = async (codes) => codes.map(() => ({ svg: MOCK_SVG, png: null }))
     const { zip, converter } = await convertAndRead(MERMAID_MD, mockRenderer)
     const svgFiles = Object.keys(zip.files).filter(f => f.endsWith('.svg'))
     assert.strictEqual(svgFiles.length, 1, 'should have one SVG in media')
@@ -65,7 +81,7 @@ async function run() {
 
   await test('mermaid renderer receives the diagram code', async () => {
     let receivedCodes = null
-    const mockRenderer = async (codes) => { receivedCodes = codes; return codes.map(() => MOCK_SVG) }
+    const mockRenderer = async (codes) => { receivedCodes = codes; return codes.map(() => ({ svg: MOCK_SVG, png: null })) }
     await convertAndRead(MERMAID_MD, mockRenderer)
     assert.ok(receivedCodes, 'renderer should have been called')
     assert.strictEqual(receivedCodes.length, 1, 'should receive one diagram')
@@ -73,7 +89,7 @@ async function run() {
   })
 
   await test('null SVG produces failure placeholder', async () => {
-    const mockRenderer = async (codes) => codes.map(() => null)
+    const mockRenderer = async (codes) => codes.map(() => ({ svg: null, png: null }))
     const { zip, converter } = await convertAndRead(MERMAID_MD, mockRenderer)
     const docXml = await zip.file('word/document.xml').async('string')
     assert.ok(docXml.includes('Mermaid diagram conversion failed'), 'document.xml should contain failure message')
@@ -87,7 +103,7 @@ async function run() {
 <text style="font-size: 16px; font-weight: 400;" class="messageText" x="100" y="60">SecurityModeCommand</text>
 <text style="font-size: 16px;" class="other" x="100" y="100">Unchanged</text>
 </svg>`
-    const mockRenderer = async (codes) => codes.map(() => svgWithCss)
+    const mockRenderer = async (codes) => codes.map(() => ({ svg: svgWithCss, png: null }))
     const { zip } = await convertAndRead(MERMAID_MD, mockRenderer)
     const svgFiles = Object.keys(zip.files).filter(f => f.endsWith('.svg'))
     const svgContent = await zip.file(svgFiles[0]).async('string')
@@ -102,16 +118,48 @@ async function run() {
 
   await test('SVG without style block is unchanged by post-processing', async () => {
     const svgNoStyle = '<svg viewBox="0 0 200 100" xmlns="http://www.w3.org/2000/svg"><text style="font-size: 16px;" class="actor" x="50" y="20">Test</text></svg>'
-    const mockRenderer = async (codes) => codes.map(() => svgNoStyle)
+    const mockRenderer = async (codes) => codes.map(() => ({ svg: svgNoStyle, png: null }))
     const { zip } = await convertAndRead(MERMAID_MD, mockRenderer)
     const svgFiles = Object.keys(zip.files).filter(f => f.endsWith('.svg'))
     const svgContent = await zip.file(svgFiles[0]).async('string')
     assert.ok(svgContent.includes('font-size: 16px'), 'font-size should remain 16px when no style block')
   })
 
+  await test('real PNG from renderer is used as fallback (not 1x1)', async () => {
+    const mockRenderer = async (codes) => codes.map(() => ({ svg: MOCK_SVG, png: MOCK_PNG }))
+    const { zip } = await convertAndRead(MERMAID_MD, mockRenderer)
+    const pngFiles = Object.keys(zip.files).filter(f => f.endsWith('.png'))
+    assert.strictEqual(pngFiles.length, 1, 'should have one PNG fallback in media')
+    const pngBuf = await zip.file(pngFiles[0]).async('nodebuffer')
+    assert.ok(pngBuf.length > SMALL_FALLBACK_PNG.length, 'PNG should be larger than the 1x1 fallback')
+    assert.ok(pngBuf.equals(MOCK_PNG), 'PNG content should match what the renderer returned')
+  })
+
+  await test('1x1 fallback PNG is used when renderer returns null png', async () => {
+    const mockRenderer = async (codes) => codes.map(() => ({ svg: MOCK_SVG, png: null }))
+    const { zip } = await convertAndRead(MERMAID_MD, mockRenderer)
+    const pngFiles = Object.keys(zip.files).filter(f => f.endsWith('.png'))
+    assert.strictEqual(pngFiles.length, 1, 'should have one PNG fallback in media')
+    const pngBuf = await zip.file(pngFiles[0]).async('nodebuffer')
+    assert.ok(pngBuf.equals(SMALL_FALLBACK_PNG), 'should use the hardcoded 1x1 fallback PNG')
+  })
+
+  await test('each diagram gets its own PNG fallback', async () => {
+    const MOCK_PNG_2 = Buffer.concat([MOCK_PNG, Buffer.alloc(1)]) // slightly different
+    const pngs = [MOCK_PNG, MOCK_PNG_2]
+    const mockRenderer = async (codes) => codes.map((_, i) => ({ svg: MOCK_SVG, png: pngs[i] }))
+    const md = MERMAID_MD + '\n```mermaid\ngraph TD; A-->B\n```\n'
+    const { zip } = await convertAndRead(md, mockRenderer)
+    const pngFiles = Object.keys(zip.files).filter(f => f.endsWith('.png')).sort()
+    assert.strictEqual(pngFiles.length, 2, 'each diagram should have its own PNG')
+    const buf0 = await zip.file(pngFiles[0]).async('nodebuffer')
+    const buf1 = await zip.file(pngFiles[1]).async('nodebuffer')
+    assert.ok(!buf0.equals(buf1), 'the two PNG fallbacks should be distinct')
+  })
+
   await test('no mermaid fences does not call renderer', async () => {
     let called = false
-    const mockRenderer = async (codes) => { called = true; return codes.map(() => MOCK_SVG) }
+    const mockRenderer = async (codes) => { called = true; return codes.map(() => ({ svg: MOCK_SVG, png: null })) }
     await convertAndRead('# Just a heading\n\nSome text.\n', mockRenderer)
     assert.ok(!called, 'renderer should not be called when no mermaid fences')
   })
@@ -131,33 +179,33 @@ async function run() {
     const code = 'graph TD; A-->B'
     const specRoot = makeSpecRoot([code])
     let renderCalled = false
-    const renderFn = async (codes) => { renderCalled = true; return codes.map(() => MOCK_SVG) }
+    const renderFn = async (codes) => { renderCalled = true; return codes.map(() => ({ svg: MOCK_SVG, png: null })) }
     const results = await renderWithCache([code], '{}', specRoot, renderFn)
     assert.ok(renderCalled, 'renderFn should be called')
     assert.strictEqual(results.length, 1)
-    assert.ok(results[0].includes('<text>mock</text>'), 'should return rendered SVG')
+    assert.ok(results[0].svg.includes('<text>mock</text>'), 'should return rendered SVG')
     fs.rmSync(path.dirname(specRoot), { recursive: true })
   })
 
   await test('renderWithCache serves cached SVG without calling renderFn', async () => {
     const code = 'graph TD; X-->Y'
     const specRoot = makeSpecRoot([code])
-    const renderFn = async (codes) => codes.map(() => MOCK_SVG)
+    const renderFn = async (codes) => codes.map(() => ({ svg: MOCK_SVG, png: null }))
     await renderWithCache([code], '{}', specRoot, renderFn)
     let calledAgain = false
-    const renderFn2 = async (codes) => { calledAgain = true; return codes.map(() => '<svg>new</svg>') }
+    const renderFn2 = async (codes) => { calledAgain = true; return codes.map(() => ({ svg: '<svg>new</svg>', png: null })) }
     const results = await renderWithCache([code], '{}', specRoot, renderFn2)
     assert.ok(!calledAgain, 'renderFn should not be called for cached diagram')
-    assert.ok(results[0].includes('<text>mock</text>'), 'should return original cached SVG')
+    assert.ok(results[0].svg.includes('<text>mock</text>'), 'should return original cached SVG')
     fs.rmSync(path.dirname(specRoot), { recursive: true })
   })
 
   await test('renderWithCache re-renders when source changes', async () => {
     const specRoot = makeSpecRoot(['graph TD; A-->C'])
-    const renderFn = async (codes) => codes.map(c => `<svg>${c}</svg>`)
+    const renderFn = async (codes) => codes.map(c => ({ svg: `<svg>${c}</svg>`, png: null }))
     await renderWithCache(['graph TD; A-->B'], '{}', specRoot, renderFn)
     const results = await renderWithCache(['graph TD; A-->C'], '{}', specRoot, renderFn)
-    assert.ok(results[0].includes('A-->C'), 'should render the new diagram')
+    assert.ok(results[0].svg.includes('A-->C'), 'should render the new diagram')
     fs.rmSync(path.dirname(specRoot), { recursive: true })
   })
 
@@ -165,7 +213,7 @@ async function run() {
     const code1 = 'graph TD; Keep-->This'
     const code2 = 'graph TD; Remove-->This'
     const specRoot = makeSpecRoot([code1, code2])
-    const renderFn = async (codes) => codes.map(c => `<svg>${c}</svg>`)
+    const renderFn = async (codes) => codes.map(c => ({ svg: `<svg>${c}</svg>`, png: null }))
     await renderWithCache([code1, code2], '{}', specRoot, renderFn)
     const cacheDir = path.join(specRoot, '..', 'cached')
     assert.strictEqual(fs.readdirSync(cacheDir).filter(f => f.endsWith('.svg')).length, 2, 'should have 2 cached SVGs')
@@ -181,12 +229,12 @@ async function run() {
     const codes = ['graph TD; A-->B', 'graph TD; C-->D', 'graph TD; E-->F']
     const specRoot = makeSpecRoot(codes)
     let callCount = 0
-    const renderFn = async (c) => { callCount++; return c.map(x => `<svg>${x}</svg>`) }
+    const renderFn = async (c) => { callCount++; return c.map(x => ({ svg: `<svg>${x}</svg>`, png: null })) }
     const results = await renderWithCache(codes, '{}', specRoot, renderFn)
     assert.strictEqual(callCount, 1, 'renderFn should be called once for all uncached')
     assert.strictEqual(results.length, 3)
-    assert.ok(results[0].includes('A-->B'))
-    assert.ok(results[2].includes('E-->F'))
+    assert.ok(results[0].svg.includes('A-->B'))
+    assert.ok(results[2].svg.includes('E-->F'))
     fs.rmSync(path.dirname(specRoot), { recursive: true })
   })
 
@@ -194,27 +242,27 @@ async function run() {
     const code1 = 'graph TD; Cached-->One'
     const code2 = 'graph TD; New-->Two'
     const specRoot = makeSpecRoot([code1, code2])
-    const renderFn = async (codes) => codes.map(c => `<svg>${c}</svg>`)
+    const renderFn = async (codes) => codes.map(c => ({ svg: `<svg>${c}</svg>`, png: null }))
     // Pre-cache code1 only
     await renderWithCache([code1], '{}', specRoot, renderFn)
     let renderedCodes = null
-    const renderFn2 = async (codes) => { renderedCodes = codes; return codes.map(c => `<svg>${c}</svg>`) }
+    const renderFn2 = async (codes) => { renderedCodes = codes; return codes.map(c => ({ svg: `<svg>${c}</svg>`, png: null })) }
     const results = await renderWithCache([code1, code2], '{}', specRoot, renderFn2)
     assert.ok(renderedCodes, 'renderFn should be called for uncached')
     assert.strictEqual(renderedCodes.length, 1, 'only uncached code should be rendered')
     assert.ok(renderedCodes[0].includes('New-->Two'), 'should render only the new diagram')
-    assert.ok(results[0].includes('Cached-->One'), 'first result from cache')
-    assert.ok(results[1].includes('New-->Two'), 'second result freshly rendered')
+    assert.ok(results[0].svg.includes('Cached-->One'), 'first result from cache')
+    assert.ok(results[1].svg.includes('New-->Two'), 'second result freshly rendered')
     fs.rmSync(path.dirname(specRoot), { recursive: true })
   })
 
   await test('different config produces different cache key', async () => {
     const code = 'graph TD; Same-->Code'
     const specRoot = makeSpecRoot([code])
-    const renderFn = async (codes) => codes.map(() => '<svg>config1</svg>')
+    const renderFn = async (codes) => codes.map(() => ({ svg: '<svg>config1</svg>', png: null }))
     await renderWithCache([code], '{"theme":"dark"}', specRoot, renderFn)
     let called = false
-    const renderFn2 = async (codes) => { called = true; return codes.map(() => '<svg>config2</svg>') }
+    const renderFn2 = async (codes) => { called = true; return codes.map(() => ({ svg: '<svg>config2</svg>', png: null })) }
     await renderWithCache([code], '{"theme":"forest"}', specRoot, renderFn2)
     assert.ok(called, 'different config should miss cache and call renderFn')
     fs.rmSync(path.dirname(specRoot), { recursive: true })
@@ -227,7 +275,7 @@ async function run() {
     const mdPath = path.join(specRoot, 'test.md')
     const content = fs.readFileSync(mdPath, 'utf8').replace(/\n/g, '\r\n')
     fs.writeFileSync(mdPath, content)
-    const renderFn = async (codes) => codes.map(() => MOCK_SVG)
+    const renderFn = async (codes) => codes.map(() => ({ svg: MOCK_SVG, png: null }))
     await renderWithCache([codeLF], '{}', specRoot, renderFn)
     const cacheDir = path.join(specRoot, '..', 'cached')
     const svgCount = fs.readdirSync(cacheDir).filter(f => f.endsWith('.svg')).length
@@ -244,7 +292,7 @@ async function run() {
     const code2 = 'graph TD; Sub-->File'
     fs.writeFileSync(path.join(specRoot, 'root.md'), '```mermaid\n' + code1 + '\n```\n')
     fs.writeFileSync(path.join(subDir, 'nested.md'), '```mermaid\n' + code2 + '\n```\n')
-    const renderFn = async (codes) => codes.map(c => `<svg>${c}</svg>`)
+    const renderFn = async (codes) => codes.map(c => ({ svg: `<svg>${c}</svg>`, png: null }))
     await renderWithCache([code1, code2], '{}', specRoot, renderFn)
     const cacheDir = path.join(root, 'cached')
     assert.strictEqual(fs.readdirSync(cacheDir).filter(f => f.endsWith('.svg')).length, 2, 'both SVGs cached')
