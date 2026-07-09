@@ -183,11 +183,9 @@ def main():
                 pass
 
     # Post-process the DOCX to set the correct author name on all tracked changes
-    # TODO: re-enable once author injection is confirmed working on Linux
-    # print(f'Setting author to: {author_name}', file=sys.stderr)
-    # count = fix_docx_author(output_path, author_name)
-    # print(f'Updated {count} tracked-change entries.', file=sys.stderr)
-    print(f'(Author injection skipped for testing)', file=sys.stderr)
+    print(f'Setting author to: {author_name}', file=sys.stderr)
+    count = fix_docx_author(output_path, author_name)
+    print(f'Updated {count} tracked-change entries.', file=sys.stderr)
 
     print('Success')
 
