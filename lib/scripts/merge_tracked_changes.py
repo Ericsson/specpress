@@ -77,29 +77,22 @@ def fix_docx_author(docx_path, author_name):
     """Post-process a DOCX file to replace all tracked-change author names."""
     # DOCX is a ZIP containing XML files. Tracked changes use w:author attributes
     # in word/document.xml (and possibly word/footnotes.xml, word/endnotes.xml).
+    # Use regex replacement to avoid XML re-serialisation which mangles namespaces.
+    import re
     tmp_path = docx_path + '.tmp'
-    W_NS = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
-    author_attr = f'{{{W_NS}}}author'
+    author_re = re.compile(rb'(\bw:author=")[^"]*"')
+    escaped = author_name.replace('&', '&amp;').replace('<', '&lt;').replace('"', '&quot;')
+    replacement = rb'\g<1>' + escaped.encode('utf-8') + b'"'
     count = 0
 
-    with zipfile.ZipFile(docx_path, 'r') as zin, zipfile.ZipFile(tmp_path, 'w') as zout:
+    with zipfile.ZipFile(docx_path, 'r') as zin, zipfile.ZipFile(tmp_path, 'w', compression=zipfile.ZIP_DEFLATED) as zout:
         for item in zin.infolist():
             data = zin.read(item.filename)
             if item.filename.startswith('word/') and item.filename.endswith('.xml'):
-                import xml.etree.ElementTree as ET
-                try:
-                    root = ET.fromstring(data)
-                    # Find all elements with w:author attribute (w:ins, w:del, w:rPrChange, etc.)
-                    modified = False
-                    for elem in root.iter():
-                        if author_attr in elem.attrib:
-                            elem.attrib[author_attr] = author_name
-                            modified = True
-                            count += 1
-                    if modified:
-                        data = ET.tostring(root, encoding='UTF-8', xml_declaration=True)
-                except ET.ParseError:
-                    pass  # Not valid XML, keep as-is
+                new_data, n = author_re.subn(replacement, data)
+                if n > 0:
+                    data = new_data
+                    count += n
             zout.writestr(item, data)
 
     os.replace(tmp_path, docx_path)
@@ -190,9 +183,11 @@ def main():
                 pass
 
     # Post-process the DOCX to set the correct author name on all tracked changes
-    print(f'Setting author to: {author_name}', file=sys.stderr)
-    count = fix_docx_author(output_path, author_name)
-    print(f'Updated {count} tracked-change entries.', file=sys.stderr)
+    # TODO: re-enable once author injection is confirmed working on Linux
+    # print(f'Setting author to: {author_name}', file=sys.stderr)
+    # count = fix_docx_author(output_path, author_name)
+    # print(f'Updated {count} tracked-change entries.', file=sys.stderr)
+    print(f'(Author injection skipped for testing)', file=sys.stderr)
 
     print('Success')
 
