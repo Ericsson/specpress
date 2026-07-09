@@ -19,7 +19,7 @@
 
 variables:
   SPEC_ROOT: "specification"
-  CI_PUSH_USER: "gitlab-ci-token"
+  CI_PUSH_USER: "oauth2"
   # CI_PUSH_TOKEN: set in CI/CD variables (masked, protected)
 
 stages:

@@ -20,12 +20,10 @@
 # it to ".gitlab-ci.yml". Configure the variables below as needed.
 
 variables:
-  SPEC_INPUT_DIR: "specification"   # path to markdown files, relative to repo root
-  SPEC_ROOT: "specification"        # specification root for section numbering
+  SPEC_ROOT: "specification"        # path to the specification root folder, relative to repo root
   SPEC_NUMBER: "38XXX"              # specification number (e.g., "38413")
   FRONT_PAGE_DATA: ""               # path to front page JSON (optional, for non-CR exports)
-  AUTHOR_NAME: ""                   # author name for tracked changes (default: branch name)
-  CI_PUSH_USER: "gitlab-ci-token"   # username for CI push (finalize-cr job)
+  CI_PUSH_USER: "oauth2"            # username for CI push (finalize-cr job)
   # CI_PUSH_TOKEN: set in CI/CD variables (masked, protected) — required for finalize-cr
   SPECPRESS_REPO: "https://github.com/Ericsson/specpress.git"
   SPECPRESS_REF: "main"
@@ -75,18 +73,13 @@ export-docx:
         BASE_COMMIT=$(git merge-base HEAD "origin/$TARGET_BRANCH")
         echo "Target branch: ${TARGET_BRANCH}, Merge-base: ${BASE_COMMIT}"
 
-        if [ -z "$AUTHOR_NAME" ]; then
-          AUTHOR_NAME="$BRANCH_NAME"
-        fi
-
         DOCX_FILE="output/${COMMIT_DATE}_${SPEC_NUMBER}_DIFF_${BRANCH_NAME}_${SHORT_SHA}.docx"
 
         node /tmp/specpress/lib/cli/docx-diff.js \
-          "$SPEC_INPUT_DIR" \
+          "$SPEC_ROOT" \
           --output "$DOCX_FILE" \
           --base "$BASE_COMMIT" \
           --revisions HEAD \
-          --authors "$AUTHOR_NAME" \
           --backend libreoffice \
           --spec-root "$SPEC_ROOT" \
           --cr-cover-page-data "$CR_FILE"
@@ -96,7 +89,7 @@ export-docx:
         DOCX_FILE="output/${COMMIT_DATE}_${SPEC_NUMBER}_${BRANCH_NAME}_${SHORT_SHA}.docx"
 
         node /tmp/specpress/lib/cli/export-docx.js \
-          "$SPEC_INPUT_DIR" \
+          "$SPEC_ROOT" \
           "$DOCX_FILE" \
           --spec-root "$SPEC_ROOT" \
           ${FRONT_PAGE_DATA:+--front-page-data "$FRONT_PAGE_DATA"}
