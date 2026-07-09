@@ -103,6 +103,17 @@ export-docx:
 
 # -----------------------------------------------------------------------------
 # validate-cr: block MRs with invalid CR metadata
+#
+# NOTE: For this job to block merging, enable "Pipelines must succeed" in
+#       Settings > Merge requests > Merge checks in your GitLab project.
+#
+# This job exits with code 1 (pipeline failure) for all validation errors,
+# including work-in-progress states such as a missing CR number. This is
+# intentional: the MR should not be mergeable until all checks pass.
+#
+# If you do not want to receive GitLab failure emails for these expected
+# failures, adjust your notification preferences:
+#   Profile > Notifications > [project] > Custom > uncheck "Failed pipeline"
 # -----------------------------------------------------------------------------
 validate-cr:
   stage: validate
@@ -119,7 +130,7 @@ validate-cr:
 
       # --- (a) CRxxxx.json must exist ---
       if [ ! -f "$CR_FILE" ]; then
-        echo "ERROR: $CR_FILE not found. A CR metadata file is required for merge requests."
+        echo "ERROR: $CR_FILE not found. A CR metadata file is required before merging."
         exit 1
       fi
       echo "✓ $CR_FILE exists"
