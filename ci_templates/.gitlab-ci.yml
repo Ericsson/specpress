@@ -2,19 +2,22 @@
 #
 # Jobs:
 #
-#   export-docx  — Runs on every push to any branch.
-#                  Generates a DOCX DIFF (with CR cover page) if CRxxxx.json
-#                  exists in SPEC_ROOT/history/; otherwise generates a normal
-#                  DOCX export. Artifact is retained for 30 days.
+#   finalize-cr  — Runs first, on pushes to "main" or "Rel-*" branches only
+#                  (enforced via rules:). Renames CRxxxx.json to CR####.json
+#                  (zero-padded CR number) and pushes the commit back to the
+#                  branch. Requires CI_PUSH_TOKEN to be set in CI/CD variables.
+#
+#   export-docx  — Runs on every push to any branch, after finalize-cr.
+#                  On main/Rel-* branches this means it sees the renamed
+#                  CR####.json (no CRxxxx.json), so it produces a normal DOCX
+#                  export instead of a DOCX DIFF.
+#                  On feature branches it generates a DOCX DIFF if CRxxxx.json
+#                  exists, otherwise a normal DOCX export.
+#                  Artifact is retained for 30 days.
 #
 #   validate-cr  — Runs on merge requests targeting "main" or "Rel-*" branches.
 #                  Blocks the merge if CR metadata is missing, invalid, or
 #                  conflicts with an existing CR number.
-#
-#   finalize-cr  — Runs on pushes to "main" or "Rel-*" branches.
-#                  Renames CRxxxx.json to CR####.json (zero-padded CR number)
-#                  and pushes the commit back to the branch.
-#                  Requires CI_PUSH_TOKEN to be set in CI/CD variables.
 #
 # Copy this file to the top level of your specification repository and rename
 # it to ".gitlab-ci.yml". Configure the variables below as needed.
@@ -29,9 +32,68 @@ variables:
   SPECPRESS_REF: "main"
 
 stages:
+  - finalize
   - build
   - validate
-  - finalize
+
+# -----------------------------------------------------------------------------
+# finalize-cr: rename CRxxxx.json → CR####.json after merge
+#
+# Runs only on pushes to main or Rel-* branches (enforced via rules:).
+# Must run before export-docx so the DOCX export sees CR####.json, not
+# CRxxxx.json, and produces a normal export rather than a DOCX DIFF.
+# -----------------------------------------------------------------------------
+finalize-cr:
+  stage: finalize
+  image: alpine:latest
+  before_script:
+    - |
+      if [ -z "$CI_PUSH_TOKEN" ]; then
+        echo "ERROR: CI_PUSH_TOKEN is not set. Set it in Settings > CI/CD > Variables."
+        exit 1
+      fi
+      if [ -z "$CI_PUSH_USER" ]; then
+        echo "ERROR: CI_PUSH_USER is not set. Set it in Settings > CI/CD > Variables."
+        exit 1
+      fi
+    - apk add --no-cache git jq
+  script:
+    - |
+      CR_FILE="${SPEC_ROOT}/history/CRxxxx.json"
+
+      if [ ! -f "$CR_FILE" ]; then
+        echo "No $CR_FILE found — nothing to finalize."
+        exit 0
+      fi
+
+      CR_NUMBER=$(jq -r '.CR // empty' "$CR_FILE")
+      if [ -z "$CR_NUMBER" ]; then
+        echo "ERROR: $CR_FILE has no CR field — cannot rename."
+        exit 1
+      fi
+
+      CR_PADDED=$(printf "CR%04d" "$CR_NUMBER")
+      TARGET_FILE="${SPEC_ROOT}/history/${CR_PADDED}.json"
+
+      if [ -f "$TARGET_FILE" ]; then
+        echo "ERROR: $TARGET_FILE already exists — CR number conflict."
+        exit 1
+      fi
+
+      echo "Renaming $CR_FILE → $TARGET_FILE"
+      git mv "$CR_FILE" "$TARGET_FILE"
+
+      git config user.email "ci@specpress"
+      git config user.name "SpecPress CI"
+      git commit -m "Finalize ${CR_PADDED}: rename CRxxxx.json → ${CR_PADDED}.json"
+
+      REMOTE_URL=$(echo "$CI_PROJECT_URL.git" | sed "s|https://|https://${CI_PUSH_USER}:${CI_PUSH_TOKEN}@|")
+      git push "$REMOTE_URL" HEAD:"$CI_COMMIT_REF_NAME"
+
+      echo "✓ ${CR_PADDED}.json committed and pushed."
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_REF_NAME == "main"
+    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_REF_NAME =~ /^Rel-\d+$/
 
 # -----------------------------------------------------------------------------
 # export-docx: build a DOCX on every push
@@ -192,58 +254,3 @@ validate-cr:
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "main"
     - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME =~ /^Rel-\d+$/
-
-# -----------------------------------------------------------------------------
-# finalize-cr: rename CRxxxx.json → CR####.json after merge
-# -----------------------------------------------------------------------------
-finalize-cr:
-  stage: finalize
-  image: alpine:latest
-  before_script:
-    - |
-      if [ -z "$CI_PUSH_TOKEN" ]; then
-        echo "ERROR: CI_PUSH_TOKEN is not set. Set it in Settings > CI/CD > Variables."
-        exit 1
-      fi
-      if [ -z "$CI_PUSH_USER" ]; then
-        echo "ERROR: CI_PUSH_USER is not set. Set it in Settings > CI/CD > Variables."
-        exit 1
-      fi
-    - apk add --no-cache git jq
-  script:
-    - |
-      CR_FILE="${SPEC_ROOT}/history/CRxxxx.json"
-
-      if [ ! -f "$CR_FILE" ]; then
-        echo "No $CR_FILE found — nothing to finalize."
-        exit 0
-      fi
-
-      CR_NUMBER=$(jq -r '.CR // empty' "$CR_FILE")
-      if [ -z "$CR_NUMBER" ]; then
-        echo "ERROR: $CR_FILE has no CR field — cannot rename."
-        exit 1
-      fi
-
-      CR_PADDED=$(printf "CR%04d" "$CR_NUMBER")
-      TARGET_FILE="${SPEC_ROOT}/history/${CR_PADDED}.json"
-
-      if [ -f "$TARGET_FILE" ]; then
-        echo "ERROR: $TARGET_FILE already exists — CR number conflict."
-        exit 1
-      fi
-
-      echo "Renaming $CR_FILE → $TARGET_FILE"
-      git mv "$CR_FILE" "$TARGET_FILE"
-
-      git config user.email "ci@specpress"
-      git config user.name "SpecPress CI"
-      git commit -m "Finalize ${CR_PADDED}: rename CRxxxx.json → ${CR_PADDED}.json"
-
-      REMOTE_URL="https://${CI_PUSH_USER}:${CI_PUSH_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git"
-      git push "$REMOTE_URL" HEAD:"$CI_COMMIT_REF_NAME"
-
-      echo "✓ ${CR_PADDED}.json committed and pushed."
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_REF_NAME == "main"
-    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_REF_NAME =~ /^Rel-\d+$/
