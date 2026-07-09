@@ -41,6 +41,9 @@
 		"./lib/common/gitHelpers": {
 			"require": "./lib/common/gitHelpers.js"
 		},
+		"./lib/common/docxMerge": {
+			"require": "./lib/common/docxMerge.js"
+		},
 		"./lib/common/crCoverPageDetector": {
 			"require": "./lib/common/crCoverPageDetector.js"
 		},

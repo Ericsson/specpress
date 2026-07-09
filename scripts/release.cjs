@@ -51,8 +51,9 @@ if (local !== remote) {
 }
 
 // All checks passed - do the release
-console.log('All checks passed. Bumping version...')
-execSync('npm version patch', { stdio: 'inherit' })
+const arg = process.argv[2] || 'patch'
+console.log(`All checks passed. Bumping version (${arg})...`)
+execSync(`npm version ${arg}`, { stdio: 'inherit' })
 console.log('Pushing to remote...')
 execSync('git push', { stdio: 'inherit' })
 execSync('git push --tags', { stdio: 'inherit' })

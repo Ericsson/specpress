@@ -1,0 +1,106 @@
+# .gitlab-ci.yml — Unified DOCX export: DIFF for CR branches, normal for others.
+#
+# This pipeline automatically detects whether the current branch is a Change
+# Request (CR) branch by checking for a "CRxxxx.json" file in the history/
+# folder of the specification root.
+#
+# - If CRxxxx.json exists: generates a tracked-changes DOCX DIFF comparing
+#   the current branch against the point where it diverged from the release
+#   branch (derived from the "Release" field in CRxxxx.json, e.g. Rel-19).
+#   Falls back to "main" if the release branch doesn't exist.
+#   The CR cover page is included based on the CRxxxx.json metadata.
+#
+# - If CRxxxx.json does not exist: generates a normal DOCX export with the
+#   specification front page (if configured).
+#
+# Copy this file to the top level of your specification repository and rename
+# it to ".gitlab-ci.yml". Configure the variables below as needed.
+
+variables:
+  SPEC_INPUT_DIR: "specification"   # path to markdown files, relative to repo root
+  SPEC_ROOT: "specification"        # specification root for section numbering
+  SPEC_NUMBER: "38XXX"              # specification number (e.g., "38413")
+  FRONT_PAGE_DATA: ""              # path to front page JSON (optional, for non-CR exports)
+  AUTHOR_NAME: ""                  # author name for tracked changes (default: branch name)
+  SPECPRESS_REPO: "https://github.com/Ericsson/specpress.git"
+  SPECPRESS_REF: "main"
+
+stages:
+  - build
+
+export-docx:
+  stage: build
+  image: node:20
+  before_script:
+    - apt-get update && apt-get install -y --no-install-recommends git libreoffice-writer chromium jq
+    - export CHROME_BIN=$(which chromium)
+  script:
+    - git clone --depth 1 --branch $SPECPRESS_REF $SPECPRESS_REPO /tmp/specpress
+    - cd /tmp/specpress && npm ci --production && cd -
+    - mkdir -p output
+    - COMMIT_DATE=$(git show -s --format=%ci HEAD | awk '{print $1"_"$2}' | tr ':' '-')
+    - SHORT_SHA=$(git rev-parse --short HEAD)
+    - BRANCH_NAME=$(echo $CI_COMMIT_REF_NAME | tr '/' '_')
+    - |
+      CR_FILE="${SPEC_ROOT}/history/CRxxxx.json"
+      if [ -f "$CR_FILE" ]; then
+        echo "=== CR branch detected (${CR_FILE} exists) ==="
+        echo "Generating DOCX DIFF with CR cover page..."
+
+        # Derive the target branch from the Release field in CRxxxx.json
+        RELEASE=$(jq -r '.Release // empty' "$CR_FILE" 2>/dev/null)
+        if [ -n "$RELEASE" ]; then
+          TARGET_BRANCH="Rel-${RELEASE}"
+          # Verify the branch exists on the remote
+          if git ls-remote --exit-code --heads origin "$TARGET_BRANCH" >/dev/null 2>&1; then
+            echo "Using release branch: ${TARGET_BRANCH}"
+          else
+            echo "Branch ${TARGET_BRANCH} not found, falling back to main"
+            TARGET_BRANCH="main"
+          fi
+        else
+          echo "No Release field in CRxxxx.json, using main"
+          TARGET_BRANCH="main"
+        fi
+
+        # Fetch enough history to find the merge-base
+        git fetch origin "$TARGET_BRANCH" --unshallow 2>/dev/null || git fetch origin "$TARGET_BRANCH"
+
+        BASE_COMMIT=$(git merge-base HEAD "origin/$TARGET_BRANCH")
+        echo "Target branch: ${TARGET_BRANCH}"
+        echo "Merge-base:    ${BASE_COMMIT}"
+        echo "Revision:      HEAD (${SHORT_SHA})"
+
+        # Determine author name (default to branch name if not set)
+        if [ -z "$AUTHOR_NAME" ]; then
+          AUTHOR_NAME="$BRANCH_NAME"
+        fi
+
+        DOCX_FILE="output/${COMMIT_DATE}_${SPEC_NUMBER}_DIFF_${BRANCH_NAME}_${SHORT_SHA}.docx"
+
+        node /tmp/specpress/lib/cli/docx-diff.js \
+          "$SPEC_INPUT_DIR" \
+          --output "$DOCX_FILE" \
+          --base "$BASE_COMMIT" \
+          --revisions HEAD \
+          --authors "$AUTHOR_NAME" \
+          --backend libreoffice \
+          --spec-root "$SPEC_ROOT" \
+          --cr-cover-page-data "$CR_FILE"
+      else
+        echo "=== No CRxxxx.json found — normal DOCX export ==="
+
+        DOCX_FILE="output/${COMMIT_DATE}_${SPEC_NUMBER}_${BRANCH_NAME}_${SHORT_SHA}.docx"
+
+        node /tmp/specpress/lib/cli/export-docx.js \
+          "$SPEC_INPUT_DIR" \
+          "$DOCX_FILE" \
+          --spec-root "$SPEC_ROOT" \
+          ${FRONT_PAGE_DATA:+--front-page-data "$FRONT_PAGE_DATA"}
+      fi
+
+      echo "Output: $DOCX_FILE"
+  artifacts:
+    paths:
+      - output/*.docx
+    expire_in: 30 days

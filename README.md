@@ -63,12 +63,32 @@ node node_modules/specpress/lib/cli/normalize-json-file.js <path-to-json-file>
 
 For detailed documentation of the RAN4 library, see [Band Combinations](documentation/Band-Combinations.md).
 
+### DOCX DIFF (Tracked Changes)
+
+Generates a tracked-changes DOCX comparing two or more versions of a specification:
+
+```bash
+node node_modules/specpress/lib/cli/docx-diff.js <inputPaths...> --output <file> \
+  --base <commit> --revisions <commit...> [--authors <name...>] \
+  [--spec-root <dir>] [--backend auto|word|libreoffice] \
+  [--cr-cover-page-data <file>]
+```
+
+Use `local` as a commit identifier to compare against the current working copy. When `--authors` is omitted and `--cr-cover-page-data` is provided, the author name is derived automatically from the CR JSON (e.g. `CR0042_Ericsson`).
+
+Requires Microsoft Word (Windows) or LibreOffice Writer (cross-platform) for the merge step.
+
+For full documentation, see [DOCX DIFF — CLI and CI Pipeline](documentation/DOCX-DIFF-Headless.md).
+
 ### CI Pipeline Integration
 
 The `ci_templates/` directory contains ready-to-use GitLab CI configurations:
 
 - **`.gitlab-ci-export-docx.yml`** — Builds a DOCX artifact from your spec on every push to main or tag. Configure `SPEC_INPUT_DIR`, `SPEC_ROOT`, and `DOCX_OUTPUT` variables.
 - **`.gitlab-ci-export-html.yml`** — Builds HTML and publishes it via GitLab Pages. Configure `SPEC_INPUT_DIR`.
+- **`.gitlab-ci-docx-diff.yml`** — Generates a tracked-changes DOCX DIFF between two versions using LibreOffice. Configure `BASE_COMMIT`, `REVISION_COMMIT`, and optionally `AUTHOR_NAME`.
+- **`.gitlab-ci-validate-cr.yml`** — Blocks merge requests targeting `main` or `Rel-*` branches if CR metadata is missing, invalid, or conflicts with existing CRs.
+- **`.gitlab-ci-finalize-cr.yml`** — After a CR branch is merged, renames `CRxxxx.json` to `CR0042.json` (using the CR number) and pushes the commit. Requires a CI push token.
 
 To use them, copy the relevant file into your specification repository as `.gitlab-ci.yml` (or include it from your existing pipeline). The templates clone specpress at build time, so no local installation is needed in the CI runner.
 
