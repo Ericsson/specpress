@@ -25,7 +25,7 @@ docx-diff:
   stage: build
   image: node:20
   before_script:
-    - apt-get update && apt-get install -y --no-install-recommends git libreoffice-writer
+    - apt-get update && apt-get install -y --no-install-recommends git libreoffice-writer python3-uno
     # Chromium for mermaid diagram rendering
     - apt-get install -y --no-install-recommends chromium
     - export CHROME_BIN=$(which chromium)

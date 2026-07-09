@@ -30,7 +30,7 @@ export-docx:
   stage: build
   image: node:20
   before_script:
-    - apt-get update && apt-get install -y --no-install-recommends git libreoffice-writer chromium jq
+    - apt-get update && apt-get install -y --no-install-recommends git libreoffice-writer python3-uno chromium jq
     - export CHROME_BIN=$(which chromium)
   script:
     - git clone --depth 1 --branch $SPECPRESS_REF $SPECPRESS_REPO /tmp/specpress
