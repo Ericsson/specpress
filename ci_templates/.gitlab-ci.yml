@@ -1,0 +1,245 @@
+# .gitlab-ci.yml — Unified SpecPress CI pipeline.
+#
+# Jobs:
+#
+#   export-docx  — Runs on every push to any branch.
+#                  Generates a DOCX DIFF (with CR cover page) if CRxxxx.json
+#                  exists in SPEC_ROOT/history/; otherwise generates a normal
+#                  DOCX export. Artifact is retained for 30 days.
+#
+#   validate-cr  — Runs on merge requests targeting "main" or "Rel-*" branches.
+#                  Blocks the merge if CR metadata is missing, invalid, or
+#                  conflicts with an existing CR number.
+#
+#   finalize-cr  — Runs on pushes to "main" or "Rel-*" branches.
+#                  Renames CRxxxx.json to CR####.json (zero-padded CR number)
+#                  and pushes the commit back to the branch.
+#                  Requires CI_PUSH_TOKEN to be set in CI/CD variables.
+#
+# Copy this file to the top level of your specification repository and rename
+# it to ".gitlab-ci.yml". Configure the variables below as needed.
+
+variables:
+  SPEC_INPUT_DIR: "specification"   # path to markdown files, relative to repo root
+  SPEC_ROOT: "specification"        # specification root for section numbering
+  SPEC_NUMBER: "38XXX"              # specification number (e.g., "38413")
+  FRONT_PAGE_DATA: ""               # path to front page JSON (optional, for non-CR exports)
+  AUTHOR_NAME: ""                   # author name for tracked changes (default: branch name)
+  CI_PUSH_USER: "gitlab-ci-token"   # username for CI push (finalize-cr job)
+  # CI_PUSH_TOKEN: set in CI/CD variables (masked, protected) — required for finalize-cr
+  SPECPRESS_REPO: "https://github.com/Ericsson/specpress.git"
+  SPECPRESS_REF: "main"
+
+stages:
+  - build
+  - validate
+  - finalize
+
+# -----------------------------------------------------------------------------
+# export-docx: build a DOCX on every push
+# -----------------------------------------------------------------------------
+export-docx:
+  stage: build
+  image: node:20
+  before_script:
+    - apt-get update && apt-get install -y --no-install-recommends git libreoffice-writer chromium jq
+    - export CHROME_BIN=$(which chromium)
+  script:
+    - git clone --depth 1 --branch $SPECPRESS_REF $SPECPRESS_REPO /tmp/specpress
+    - cd /tmp/specpress && npm ci --production && cd -
+    - mkdir -p output
+    - COMMIT_DATE=$(git show -s --format=%ci HEAD | awk '{print $1"_"$2}' | tr ':' '-')
+    - SHORT_SHA=$(git rev-parse --short HEAD)
+    - BRANCH_NAME=$(echo $CI_COMMIT_REF_NAME | tr '/' '_')
+    - |
+      CR_FILE="${SPEC_ROOT}/history/CRxxxx.json"
+      if [ -f "$CR_FILE" ]; then
+        echo "=== CR branch detected (${CR_FILE} exists) ==="
+        echo "Generating DOCX DIFF with CR cover page..."
+
+        RELEASE=$(jq -r '.Release // empty' "$CR_FILE" 2>/dev/null)
+        if [ -n "$RELEASE" ]; then
+          TARGET_BRANCH="Rel-${RELEASE}"
+          if git ls-remote --exit-code --heads origin "$TARGET_BRANCH" >/dev/null 2>&1; then
+            echo "Using release branch: ${TARGET_BRANCH}"
+          else
+            echo "Branch ${TARGET_BRANCH} not found, falling back to main"
+            TARGET_BRANCH="main"
+          fi
+        else
+          echo "No Release field in CRxxxx.json, using main"
+          TARGET_BRANCH="main"
+        fi
+
+        git fetch origin "$TARGET_BRANCH" --unshallow 2>/dev/null || git fetch origin "$TARGET_BRANCH"
+        BASE_COMMIT=$(git merge-base HEAD "origin/$TARGET_BRANCH")
+        echo "Target branch: ${TARGET_BRANCH}, Merge-base: ${BASE_COMMIT}"
+
+        if [ -z "$AUTHOR_NAME" ]; then
+          AUTHOR_NAME="$BRANCH_NAME"
+        fi
+
+        DOCX_FILE="output/${COMMIT_DATE}_${SPEC_NUMBER}_DIFF_${BRANCH_NAME}_${SHORT_SHA}.docx"
+
+        node /tmp/specpress/lib/cli/docx-diff.js \
+          "$SPEC_INPUT_DIR" \
+          --output "$DOCX_FILE" \
+          --base "$BASE_COMMIT" \
+          --revisions HEAD \
+          --authors "$AUTHOR_NAME" \
+          --backend libreoffice \
+          --spec-root "$SPEC_ROOT" \
+          --cr-cover-page-data "$CR_FILE"
+      else
+        echo "=== No CRxxxx.json found — normal DOCX export ==="
+
+        DOCX_FILE="output/${COMMIT_DATE}_${SPEC_NUMBER}_${BRANCH_NAME}_${SHORT_SHA}.docx"
+
+        node /tmp/specpress/lib/cli/export-docx.js \
+          "$SPEC_INPUT_DIR" \
+          "$DOCX_FILE" \
+          --spec-root "$SPEC_ROOT" \
+          ${FRONT_PAGE_DATA:+--front-page-data "$FRONT_PAGE_DATA"}
+      fi
+
+      echo "Output: $DOCX_FILE"
+  artifacts:
+    paths:
+      - output/*.docx
+    expire_in: 30 days
+
+# -----------------------------------------------------------------------------
+# validate-cr: block MRs with invalid CR metadata
+# -----------------------------------------------------------------------------
+validate-cr:
+  stage: validate
+  image: node:20
+  before_script:
+    - apt-get update && apt-get install -y --no-install-recommends git jq
+    - git clone --depth 1 --branch $SPECPRESS_REF $SPECPRESS_REPO /tmp/specpress
+    - cd /tmp/specpress && npm ci --production && cd -
+  script:
+    - |
+      CR_FILE="${SPEC_ROOT}/history/CRxxxx.json"
+      HISTORY_DIR="${SPEC_ROOT}/history"
+      TARGET="$CI_MERGE_REQUEST_TARGET_BRANCH_NAME"
+
+      # --- (a) CRxxxx.json must exist ---
+      if [ ! -f "$CR_FILE" ]; then
+        echo "ERROR: $CR_FILE not found. A CR metadata file is required for merge requests."
+        exit 1
+      fi
+      echo "✓ $CR_FILE exists"
+
+      # --- (b) CRxxxx.json must match the schema ---
+      VALIDATION=$(node -e "
+        const { loadCRCoverPageData } = require('/tmp/specpress/lib/common/crCoverPageLoader');
+        const path = require('path');
+        const result = loadCRCoverPageData(path.resolve('$CR_FILE'));
+        if (!result.valid) {
+          console.log('ERRORS:' + result.errors.join('; '));
+          process.exit(1);
+        }
+      " 2>&1) || {
+        echo "ERROR: $CR_FILE does not match the schema."
+        echo "$VALIDATION" | grep "^ERRORS:" | sed 's/^ERRORS:/  /'
+        exit 1
+      }
+      echo "✓ Schema validation passed"
+
+      # --- (c) CR field must be present ---
+      CR_NUMBER=$(jq -r '.CR // empty' "$CR_FILE")
+      if [ -z "$CR_NUMBER" ]; then
+        echo "ERROR: $CR_FILE has no \"CR\" field. A CR number is required before merging."
+        exit 1
+      fi
+      echo "✓ CR field present: $CR_NUMBER"
+
+      # --- (d) Release must match target branch (unless target is main) ---
+      if [ "$TARGET" != "main" ]; then
+        RELEASE=$(jq -r '.Release // empty' "$CR_FILE")
+        EXPECTED_BRANCH="Rel-${RELEASE}"
+        if [ "$EXPECTED_BRANCH" != "$TARGET" ]; then
+          echo "ERROR: Release field (Rel-${RELEASE}) does not match target branch (${TARGET})."
+          exit 1
+        fi
+        echo "✓ Release matches target branch: $TARGET"
+      else
+        echo "✓ Target is main — skipping Release check"
+      fi
+
+      # --- (e) CRYYYY.json must not already exist ---
+      CR_PADDED=$(printf "CR%04d" "$CR_NUMBER")
+      FINAL_FILE="${HISTORY_DIR}/${CR_PADDED}.json"
+
+      if [ -f "$FINAL_FILE" ]; then
+        echo "ERROR: $FINAL_FILE already exists on the source branch. CR number $CR_NUMBER is already used."
+        exit 1
+      fi
+
+      if git cat-file -e "origin/${TARGET}:${FINAL_FILE}" 2>/dev/null; then
+        echo "ERROR: $FINAL_FILE already exists on the target branch (${TARGET}). CR number $CR_NUMBER is already used."
+        exit 1
+      fi
+      echo "✓ ${CR_PADDED}.json does not exist on source or target branch"
+
+      echo ""
+      echo "=== All CR validation checks passed ==="
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "main"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME =~ /^Rel-\d+$/
+
+# -----------------------------------------------------------------------------
+# finalize-cr: rename CRxxxx.json → CR####.json after merge
+# -----------------------------------------------------------------------------
+finalize-cr:
+  stage: finalize
+  image: alpine:latest
+  before_script:
+    - |
+      if [ -z "$CI_PUSH_TOKEN" ]; then
+        echo "ERROR: CI_PUSH_TOKEN is not set. Set it in Settings > CI/CD > Variables."
+        exit 1
+      fi
+      if [ -z "$CI_PUSH_USER" ]; then
+        echo "ERROR: CI_PUSH_USER is not set. Set it in Settings > CI/CD > Variables."
+        exit 1
+      fi
+    - apk add --no-cache git jq
+  script:
+    - |
+      CR_FILE="${SPEC_ROOT}/history/CRxxxx.json"
+
+      if [ ! -f "$CR_FILE" ]; then
+        echo "No $CR_FILE found — nothing to finalize."
+        exit 0
+      fi
+
+      CR_NUMBER=$(jq -r '.CR // empty' "$CR_FILE")
+      if [ -z "$CR_NUMBER" ]; then
+        echo "ERROR: $CR_FILE has no CR field — cannot rename."
+        exit 1
+      fi
+
+      CR_PADDED=$(printf "CR%04d" "$CR_NUMBER")
+      TARGET_FILE="${SPEC_ROOT}/history/${CR_PADDED}.json"
+
+      if [ -f "$TARGET_FILE" ]; then
+        echo "ERROR: $TARGET_FILE already exists — CR number conflict."
+        exit 1
+      fi
+
+      echo "Renaming $CR_FILE → $TARGET_FILE"
+      git mv "$CR_FILE" "$TARGET_FILE"
+
+      git config user.email "ci@specpress"
+      git config user.name "SpecPress CI"
+      git commit -m "Finalize ${CR_PADDED}: rename CRxxxx.json → ${CR_PADDED}.json"
+
+      REMOTE_URL="https://${CI_PUSH_USER}:${CI_PUSH_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git"
+      git push "$REMOTE_URL" HEAD:"$CI_COMMIT_REF_NAME"
+
+      echo "✓ ${CR_PADDED}.json committed and pushed."
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_REF_NAME == "main"
+    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_REF_NAME =~ /^Rel-\d+$/

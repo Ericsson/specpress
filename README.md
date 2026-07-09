@@ -82,15 +82,17 @@ For full documentation, see [DOCX DIFF — CLI and CI Pipeline](documentation/DO
 
 ### CI Pipeline Integration
 
-The `ci_templates/` directory contains ready-to-use GitLab CI configurations:
+The `ci_templates/` directory contains ready-to-use GitLab CI configurations.
 
-- **`.gitlab-ci-export-docx.yml`** — Builds a DOCX artifact from your spec on every push to main or tag. Configure `SPEC_INPUT_DIR`, `SPEC_ROOT`, and `DOCX_OUTPUT` variables.
-- **`.gitlab-ci-export-html.yml`** — Builds HTML and publishes it via GitLab Pages. Configure `SPEC_INPUT_DIR`.
-- **`.gitlab-ci-docx-diff.yml`** — Generates a tracked-changes DOCX DIFF between two versions using LibreOffice. Configure `BASE_COMMIT`, `REVISION_COMMIT`, and optionally `AUTHOR_NAME`.
-- **`.gitlab-ci-validate-cr.yml`** — Blocks merge requests targeting `main` or `Rel-*` branches if CR metadata is missing, invalid, or conflicts with existing CRs.
-- **`.gitlab-ci-finalize-cr.yml`** — After a CR branch is merged, renames `CRxxxx.json` to `CR0042.json` (using the CR number) and pushes the commit. Requires a CI push token.
+**Recommended: use the unified pipeline** — copy `ci_templates/.gitlab-ci.yml` to the root of your specification repository. It combines all three jobs in a single file:
 
-To use them, copy the relevant file into your specification repository as `.gitlab-ci.yml` (or include it from your existing pipeline). The templates clone specpress at build time, so no local installation is needed in the CI runner.
+- **`export-docx`** — Runs on every push. Generates a DOCX DIFF (with CR cover page) if `CRxxxx.json` exists in `history/`; otherwise generates a normal DOCX export.
+- **`validate-cr`** — Runs on merge requests targeting `main` or `Rel-*` branches. Blocks the merge if CR metadata is missing, invalid, or conflicts with an existing CR number.
+- **`finalize-cr`** — Runs on pushes to `main` or `Rel-*` branches. Renames `CRxxxx.json` to `CR####.json` and pushes the commit. Requires `CI_PUSH_TOKEN` to be set in CI/CD variables.
+
+Individual single-purpose templates are available in `ci_templates/individual/` for use cases where only a subset of jobs is needed (e.g. HTML export only, or DOCX DIFF only).
+
+All templates clone specpress at build time, so no local installation is needed in the CI runner.
 
 ## Testing
 
