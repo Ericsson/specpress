@@ -1,0 +1,53 @@
+/* Change tracking styles for HTML diff output */
+
+ins {
+  background-color: #d4edda;
+  text-decoration: none;
+}
+
+del {
+  background-color: #f8d7da;
+  text-decoration: line-through;
+}
+
+ins.diffmod {
+  background-color: #cce5ff;
+  text-decoration: none;
+}
+
+del.diffmod {
+  background-color: #fff3cd;
+  text-decoration: line-through;
+}
+
+.diff-del-block {
+  border: 2px solid #dc3545;
+  border-radius: 4px;
+  padding: 8px;
+  margin: 8px 0;
+  background-color: #fff5f5;
+}
+
+.diff-ins-block {
+  border: 2px solid #28a745;
+  border-radius: 4px;
+  padding: 8px;
+  margin: 8px 0;
+  background-color: #f0fff0;
+}
+
+.diff-label {
+  font-size: 11px;
+  font-weight: bold;
+  color: #666;
+  margin: 0 0 4px 0;
+  padding: 0;
+}
+
+.diff-del-block .diff-label {
+  color: #dc3545;
+}
+
+.diff-ins-block .diff-label {
+  color: #28a745;
+}

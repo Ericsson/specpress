@@ -111,13 +111,26 @@ as `lib/md2html/htmlDiff.js`. Create a CLI wrapper at `lib/cli/export-html-diff.
 
 ### Known issue: Scroll sync breaks with change tracking enabled
 
-When change tracking is active in the VS Code preview, scroll synchronization
-between the editor and the preview panel stops working. Investigate:
+**FIXED** — `data-source-line` attributes are now preserved through the diff process.
 
-- [ ] The `<ins>`/`<del>` markup may disrupt `data-source-line` attributes
-- [ ] Placeholder replacement/restoration may strip or relocate source annotations
-- [ ] The diff HTML rewrite at step 6 in diffRenderer.js injects `data-source-file`
-      but may not correctly preserve `data-source-line`
+### Known limitation: Renamed/deleted files not detected in change tracking
+
+When a markdown file is renamed, the change tracking shows the old content as
+missing and the new content as entirely added (rather than showing just the
+heading change). Similarly, deleted files don't appear as deletions in the diff.
+
+Root cause: The baseline content is matched to current files by filename. A renamed
+file has a different name, so no baseline match is found.
+
+Approaches considered but not yet implemented:
+- Match by directory position + numeric prefix (handles renames within same slot)
+- Include all baseline files within spec root (causes false deletions in live preview)
+- Scope-aware matching with edge trimming
+
+A clean solution likely requires:
+- [ ] Matching at the file-collection level before rendering (not in the diff wrapper)
+- [ ] A heuristic that pairs files by content similarity when names don't match
+- [ ] Different behavior for full-spec preview (show deletions) vs live preview (don't)
 
 ### Architecture
 
@@ -181,3 +194,58 @@ Modules:
 - [ ] Section numbering changes don't produce false diffs
 - [ ] Output HTML is self-contained (images in media/, CSS embedded)
 - [ ] data-source-line attributes survive the diff for scroll sync
+
+
+## PRIORITY: Unified image/diagram URI and file resolution
+
+Currently inconsistent handling of images and diagrams across contexts:
+
+### Current inconsistencies
+
+1. **Diagram SVGs use absolute paths** in the HTML renderer, while regular images
+   use relative paths. Both work for export but for different reasons.
+
+2. **Git-sourced images are broken** in HTML diff/preview. When rendering baseline
+   content from a git commit, images referenced by that markdown don't exist on
+   disk (they're in the commit, not the working copy). They silently disappear.
+
+3. **URI resolution logic is scattered** across: image token renderer, fence
+   renderer, renderBody post-processing, exportHtmlFromDirectory regex.
+
+### Design for unified handling
+
+**Core concept: `fileResolver`**
+
+A single function `(path) => Buffer|string|null` that resolves file paths to
+content. The Md2Html instance accepts it in the constructor (same as
+MarkdownToDocxConverter already does for DOCX).
+
+- For local files: `fileResolver = null` (uses filesystem directly)
+- For git baseline: `fileResolver = makeCachedFileResolver(gitCache)`
+- For preview: `fileResolver = null` (local files via filesystem)
+
+**Image path strategy:**
+
+All image sources (regular PNGs, mermaid SVGs, mscgen SVGs) output as
+**relative paths** from the rendered HTML. The fence renderer outputs paths
+relative to the spec root's parent (where `cached/` lives).
+
+**URI transformation (final step):**
+
+| Context | Input (relative path) | Output |
+|---|---|---|
+| Export (CLI) | `cached/abc123.svg` | → copied to `media/`, rewritten to `media/abc123.svg` |
+| Export (CLI) | `assets/test.png` | → copied to `media/`, rewritten to `media/test.png` |
+| Preview (VS Code) | `cached/abc123.svg` | → `resolveImageUri(absPath)` → `vscode-webview://...` |
+| DOCX | `cached/abc123.svg` | → read via fileResolver, embedded as ImageRun |
+| HTML diff (baseline) | `assets/old.png` | → read via fileResolver(gitCache), embedded as data URI or placeholder |
+
+### Implementation steps
+
+1. Make diagram fence renderers output **relative** paths (relative to spec root parent)
+2. Add `fileResolver` option to Md2Html constructor
+3. Image token renderer: use fileResolver to check existence (instead of fs.existsSync)
+4. exportHtmlFromDirectory: resolve relative paths using baseDir, copy to media/
+5. HTML diff baseline: pass fileResolver backed by git cache
+6. Update resolveImageUri post-processing to resolve relative → absolute → webview URI
+7. Remove absolute path logic from diagram fence renderers

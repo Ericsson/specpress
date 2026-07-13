@@ -74,6 +74,9 @@
 		"./lib/md2html/crCoverPageRenderer": {
 			"require": "./lib/md2html/crCoverPageRenderer.js"
 		},
+		"./lib/md2html/htmlDiff": {
+			"require": "./lib/md2html/htmlDiff.js"
+		},
 		"./lib/md2docx/crCoverPageRenderer": {
 			"require": "./lib/md2docx/crCoverPageRenderer.js"
 		},
@@ -127,6 +130,7 @@
 		"ajv": "^8.20.0",
 		"ajv-formats": "^3.0.1",
 		"docx": "^9.6.1",
+		"htmldiff-js": "^1.0.5",
 		"katex": "^0.16.38",
 		"markdown-it": "^14.1.1",
 		"markdown-it-emoji": "^2.0.2",
