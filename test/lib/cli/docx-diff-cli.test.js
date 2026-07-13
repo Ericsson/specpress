@@ -1,5 +1,5 @@
 const assert = require('assert')
-const { parseArgs } = require('../../../lib/cli/docx-diff')
+const { parseArgs } = require('../../../lib/cli/export-docx-diff')
 
 let passed = 0, failed = 0
 function test(name, fn) {

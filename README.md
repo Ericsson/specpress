@@ -68,7 +68,7 @@ For detailed documentation of the RAN4 library, see [Band Combinations](document
 Generates a tracked-changes DOCX comparing two or more versions of a specification:
 
 ```bash
-node node_modules/specpress/lib/cli/docx-diff.js <inputPaths...> --output <file> \
+node node_modules/specpress/lib/cli/export-docx-diff.js <inputPaths...> --output <file> \
   --base <commit> --revisions <commit...> [--authors <name...>] \
   [--spec-root <dir>] [--backend auto|word|libreoffice] \
   [--cr-cover-page-data <file>]

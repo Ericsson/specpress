@@ -30,6 +30,11 @@ variables:
   # CI_PUSH_TOKEN: set in CI/CD variables (masked, protected) — required for finalize-cr
   SPECPRESS_REPO: "https://github.com/Ericsson/specpress.git"
   SPECPRESS_REF: "main"
+  # Docker image for the export-docx job. The default node:20 image does not
+  # include Msc-generator. To enable MSC-Gen diagram rendering in CI, build a
+  # custom image that includes msc-gen and set this variable to its registry path.
+  # See ci_templates/Dockerfile.specpress for an example.
+  DOCX_IMAGE: "node:20"
 
 stages:
   - finalize
@@ -100,10 +105,11 @@ finalize-cr:
 # -----------------------------------------------------------------------------
 export-docx:
   stage: build
-  image: node:20
+  image: $DOCX_IMAGE
   before_script:
     - apt-get update && apt-get install -y --no-install-recommends git libreoffice-writer python3-uno chromium jq
     - export CHROME_BIN=$(which chromium)
+    - export MSCGEN_BIN=$(which msc-gen 2>/dev/null || echo "")
   script:
     - git clone --depth 1 --branch $SPECPRESS_REF $SPECPRESS_REPO /tmp/specpress
     - cd /tmp/specpress && npm ci --omit=dev && cd -
@@ -137,7 +143,7 @@ export-docx:
 
         DOCX_FILE="output/${COMMIT_DATE}_${SPEC_NUMBER}_DIFF_${BRANCH_NAME}_${SHORT_SHA}.docx"
 
-        node /tmp/specpress/lib/cli/docx-diff.js \
+        node /tmp/specpress/lib/cli/export-docx-diff.js \
           "$SPEC_ROOT" \
           --output "$DOCX_FILE" \
           --base "$BASE_COMMIT" \

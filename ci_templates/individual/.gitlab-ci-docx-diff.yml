@@ -38,7 +38,7 @@ docx-diff:
     - BRANCH_NAME=$(echo $CI_COMMIT_REF_NAME | tr '/' '_')
     - DOCX_FILE="output/${COMMIT_DATE}_${SPEC_NUMBER}_DIFF_${BRANCH_NAME}_${SHORT_SHA}.docx"
     - >
-      node /tmp/specpress/lib/cli/docx-diff.js
+      node /tmp/specpress/lib/cli/export-docx-diff.js
       "$SPEC_INPUT_DIR"
       --output "$DOCX_FILE"
       --base "$BASE_COMMIT"

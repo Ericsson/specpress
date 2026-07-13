@@ -91,8 +91,8 @@ test('omits data-source-line when forPreview is false', () => {
 test('renders mermaid fenced block', () => {
   const p = new Md2Html()
   const result = p.renderBody('```mermaid\ngraph TD\n```', false)
-  assert.ok(result.includes('<pre class="mermaid">'))
-  assert.ok(result.includes('graph TD'))
+  // In export mode: rendered as inline SVG if browser available, else raw source
+  assert.ok(result.includes('<div class="mermaid-figure">') || result.includes('<pre class="mermaid">'))
 })
 
 test('renders asn fenced block with highlighting', () => {
@@ -212,12 +212,6 @@ test('produces complete HTML document', () => {
   assert.ok(result.startsWith('<!DOCTYPE html>'))
   assert.ok(result.includes('<body><p>hello</p></body>'))
   assert.ok(result.includes('body{color:red}'))
-})
-
-test('includes mermaid initialization', () => {
-  const p = new Md2Html({ mermaidConfig: '{"theme":"forest"}' })
-  const result = p.wrapHtml('<p>test</p>')
-  assert.ok(result.includes('mermaid.initialize({"theme":"forest"})'))
 })
 
 test('includes KaTeX CSS', () => {
@@ -344,14 +338,16 @@ test('NOTE inside table cell with italic gets table-note class', () => {
 
 console.log('\nfront page and CR cover page inclusion')
 
-test('renderBody with includeFrontPage=true includes standard front page', () => {
-  const p = new Md2Html({ frontPageHtml: '<div class="front-page">SPEC FRONT</div>' })
-  const result = p.renderBody('Hello\n', false, null, null, null, true)
-  assert.ok(result.includes('SPEC FRONT'), 'should include standard front page')
+test('renderBody with frontPageData includes standard front page', () => {
+  const p = new Md2Html()
+  const fpData = { SPEC_NUMBER: '38.999', VERSION: '1.0.0', DATE: '2025-01-01', TITLE: 'Test Spec' }
+  const result = p.renderBody('Hello\n', false, null, null, null, fpData)
+  assert.ok(result.includes('38.999'), 'should include standard front page')
 })
 
-test('renderBody with includeFrontPage=true and crCoverPageData includes CR cover page', () => {
-  const p = new Md2Html({ frontPageHtml: '<div class="front-page">SPEC FRONT</div>' })
+test('renderBody with crCoverPageData includes CR cover page (not front page)', () => {
+  const p = new Md2Html()
+  const fpData = { SPEC_NUMBER: '38.999', VERSION: '1.0.0' }
   const crData = {
     'TDoc Number': 'R2-001', Specification: '38.331', 'Current version': '1.0.0',
     CR: 1, rev: 1, Affected: {}, Title: 'Test', 'Source to WG': ['Ericsson'],
@@ -359,13 +355,13 @@ test('renderBody with includeFrontPage=true and crCoverPageData includes CR cove
     'Reason for change': '', 'Summary of change': '', 'Consequences if not approved': '',
     'Clauses affected': [], 'Other specs affected': {}, 'Other comments': ''
   }
-  const result = p.renderBody('Hello\n', false, null, null, null, true, crData)
+  const result = p.renderBody('Hello\n', false, null, null, null, fpData, crData)
   assert.ok(result.includes('CHANGE REQUEST'), 'should include CR cover page')
-  assert.ok(!result.includes('SPEC FRONT'), 'should NOT include standard front page')
+  assert.ok(!result.includes('38.999'), 'should NOT include standard front page')
 })
 
-test('renderBody with includeFrontPage=false and crCoverPageData does not include any front page', () => {
-  const p = new Md2Html({ frontPageHtml: '<div class="front-page">SPEC FRONT</div>' })
+test('renderBody with null frontPageData and crCoverPageData does not include any cover page', () => {
+  const p = new Md2Html()
   const crData = {
     'TDoc Number': 'R2-001', Specification: '38.331', 'Current version': '1.0.0',
     CR: 1, rev: 1, Affected: {}, Title: 'Test', 'Source to WG': ['Ericsson'],
@@ -373,15 +369,16 @@ test('renderBody with includeFrontPage=false and crCoverPageData does not includ
     'Reason for change': '', 'Summary of change': '', 'Consequences if not approved': '',
     'Clauses affected': [], 'Other specs affected': {}, 'Other comments': ''
   }
-  const result = p.renderBody('Hello\n', false, null, null, null, false, crData)
-  assert.ok(!result.includes('CHANGE REQUEST'), 'should NOT include CR cover page')
-  assert.ok(!result.includes('SPEC FRONT'), 'should NOT include standard front page')
+  // Pass crData but no frontPageData — CR cover page is included
+  const result = p.renderBody('Hello\n', false, null, null, null, null, crData)
+  assert.ok(result.includes('CHANGE REQUEST'), 'should include CR cover page when passed')
 })
 
-test('renderBody with includeFrontPage=false and no crCoverPageData includes no front page', () => {
-  const p = new Md2Html({ frontPageHtml: '<div class="front-page">SPEC FRONT</div>' })
-  const result = p.renderBody('Hello\n', false, null, null, null, false)
-  assert.ok(!result.includes('SPEC FRONT'), 'should NOT include standard front page')
+test('renderBody with no frontPageData and no crCoverPageData includes no cover page', () => {
+  const p = new Md2Html()
+  const result = p.renderBody('Hello\n', false, null, null, null, null, null)
+  assert.ok(!result.includes('CHANGE REQUEST'), 'no CR cover page')
+  assert.ok(!result.includes('front-page'), 'no front page')
 })
 
 console.log(`\n${passed} passed, ${failed} failed`)

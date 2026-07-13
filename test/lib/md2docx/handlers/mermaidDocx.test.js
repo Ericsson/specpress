@@ -88,11 +88,11 @@ async function run() {
     assert.ok(receivedCodes[0].includes('SecurityModeCommand'), 'code should contain the diagram text')
   })
 
-  await test('null SVG produces failure placeholder', async () => {
+  await test('null SVG produces raw code fallback', async () => {
     const mockRenderer = async (codes) => codes.map(() => ({ svg: null, png: null }))
     const { zip, converter } = await convertAndRead(MERMAID_MD, mockRenderer)
     const docXml = await zip.file('word/document.xml').async('string')
-    assert.ok(docXml.includes('Mermaid diagram conversion failed'), 'document.xml should contain failure message')
+    assert.ok(docXml.includes('sequenceDiagram'), 'document.xml should contain raw diagram source')
     assert.strictEqual(converter.imageCount, 0, 'imageCount should be 0')
   })
 

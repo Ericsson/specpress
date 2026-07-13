@@ -279,6 +279,41 @@ pre.mermaid {
   height: auto;
 }
 
+.mermaid-figure {
+  text-align: center;
+  background-color: #FFF;
+}
+
+.mermaid-figure svg {
+  display: inline-block;
+  margin-top: 18px;
+  margin-bottom: 3px;
+  padding: 0px;
+  max-width: 750px;
+  height: auto;
+}
+
+.mscgen-figure {
+  text-align: center;
+  background-color: #FFF;
+}
+
+.mscgen-figure svg {
+  display: inline-block;
+  margin-top: 18px;
+  margin-bottom: 3px;
+  padding: 0px;
+  max-width: 750px;
+  height: auto;
+}
+
+pre.mscgen {
+  text-align: center;
+  background-color: #f8f8f8;
+  border: 1px dashed #ccc;
+  padding: 1em;
+}
+
 .note {
   /* font-weight: bold; */
   padding-left: 52px;

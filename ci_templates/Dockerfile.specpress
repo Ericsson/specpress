@@ -1,0 +1,32 @@
+# Dockerfile.specpress — CI image for SpecPress DOCX export with MSC-Gen support.
+#
+# Build and push to your container registry:
+#   docker build -f Dockerfile.specpress -t registry.example.com/specpress-ci:latest .
+#   docker push registry.example.com/specpress-ci:latest
+#
+# Then set DOCX_IMAGE in your .gitlab-ci.yml:
+#   variables:
+#     DOCX_IMAGE: "registry.example.com/specpress-ci:latest"
+#
+# Msc-generator must be downloaded manually from https://gitlab.com/msc-generator/msc-generator
+# and placed in this directory as "msc-gen" before building. This avoids downloading
+# untrusted binaries at CI runtime.
+
+FROM node:20-bookworm-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    libreoffice-writer \
+    python3-uno \
+    chromium \
+    jq \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy the pre-verified Msc-generator binary into the image.
+# Download it from https://gitlab.com/msc-generator/msc-generator/-/releases
+# and place it next to this Dockerfile before building.
+COPY msc-gen /usr/local/bin/msc-gen
+RUN chmod +x /usr/local/bin/msc-gen
+
+ENV CHROME_BIN=/usr/bin/chromium
+ENV MSCGEN_BIN=/usr/local/bin/msc-gen

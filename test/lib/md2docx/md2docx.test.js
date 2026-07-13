@@ -507,15 +507,14 @@ async function run() {
     }
   })
 
-  await test('convert with frontPage and no crCoverPageData uses standard front page', async () => {
+  await test('convert with frontPageData and no crCoverPageData uses standard front page', async () => {
     const mdPath = path.join(os.tmpdir(), `fp_std_${Date.now()}.md`)
     const docxPath = mdPath.replace('.md', '.docx')
     fs.writeFileSync(mdPath, '# Hello\n\nWorld\n')
     try {
-      const { buildFrontPageDocx } = require('../../../lib/md2docx/frontPage')
-      const frontPage = buildFrontPageDocx({ SPEC_NUMBER: '99.999', VERSION: '1.0.0', TITLE: 'Test Spec' })
+      const frontPageData = { SPEC_NUMBER: '99.999', VERSION: '1.0.0', TITLE: 'Test Spec' }
       const converter = new MarkdownToDocxConverter(null, '')
-      await converter.convert(mdPath, docxPath, os.tmpdir(), frontPage, {})
+      await converter.convert(mdPath, docxPath, os.tmpdir(), frontPageData, {})
       const buf = fs.readFileSync(docxPath)
       const zip = await JSZip.loadAsync(buf)
       const xml = await zip.file('word/document.xml').async('string')

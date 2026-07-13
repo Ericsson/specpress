@@ -1,0 +1,11 @@
+{
+  "preamble": [
+    "hscale=\"auto\";",
+    "defstyle hgap [text.gap.left=20, text.gap.right=20];",
+    "defstyle entity [text.font.face=\"Arial\", text.size.normal=14, text.wrap=no, text.bold=yes];",
+    "defstyle b2 [text.font.face=\"Arial\", text.size.normal=13, vspacing=7, text.wrap=no, hgap];",
+    "defstyle ac [text.font.face=\"Times\", text.size.normal=15, text.italic=yes, vspacing=5, arrow.type=sharp, hgap];",
+    "defstyle au [text.font.face=\"Arial\", text.size.normal=13, vspacing=5, hgap];",
+    "defstyle n1 [text.font.face=\"Arial\", text.size.normal=13, vspacing=5, weak, text.italic=no, hgap];"
+  ]
+}
