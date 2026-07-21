@@ -25,23 +25,24 @@ test('uses defaults when no options provided', () => {
   assert.strictEqual(p.css, '')
   assert.ok(typeof p.mermaidConfig === 'string' && p.mermaidConfig.length > 0, 'mermaidConfig should be loaded from default')
   assert.deepStrictEqual(p.customRenderers, {})
-  assert.strictEqual(p.resolveImageUri, null)
+  assert.strictEqual(p.fileResolver, null)
   assert.strictEqual(p.extraHeadContent, '')
   assert.strictEqual(p.md, null)
 })
 
 test('accepts all options', () => {
   const resolve = (p) => p
+  const fileResolver = { resolveImageUri: resolve }
   const p = new Md2Html({
     css: 'body{}',
     mermaidConfig: '{"theme":"dark"}',
     customRenderers: { fence: '() => "x"' },
-    resolveImageUri: resolve,
+    fileResolver,
     extraHeadContent: '<script></script>'
   })
   assert.strictEqual(p.css, 'body{}')
   assert.strictEqual(p.mermaidConfig, '{"theme":"dark"}')
-  assert.strictEqual(p.resolveImageUri, resolve)
+  assert.strictEqual(p.fileResolver, fileResolver)
   assert.strictEqual(p.extraHeadContent, '<script></script>')
 })
 
@@ -279,25 +280,25 @@ test('does not resolve images when no resolveImageUri', () => {
 })
 
 test('does not resolve images when file does not exist', () => {
-  const p = new Md2Html({ resolveImageUri: () => 'resolved' })
+  const p = new Md2Html({ fileResolver: { resolveImageUri: () => 'resolved', exists: () => false } })
   const result = p.renderBody('![alt](img.png)', false, '/some/dir')
   assert.ok(result.includes('src="img.png"'))
 })
 
 test('skips http URLs', () => {
-  const p = new Md2Html({ resolveImageUri: () => 'resolved' })
+  const p = new Md2Html({ fileResolver: { resolveImageUri: () => 'resolved', exists: () => true } })
   const result = p.renderBody('![alt](http://example.com/img.png)', true, '/some/dir')
   assert.ok(result.includes('src="http://example.com/img.png"'))
 })
 
 test('skips https URLs', () => {
-  const p = new Md2Html({ resolveImageUri: () => 'resolved' })
+  const p = new Md2Html({ fileResolver: { resolveImageUri: () => 'resolved', exists: () => true } })
   const result = p.renderBody('![alt](https://example.com/img.png)', true, '/some/dir')
   assert.ok(result.includes('src="https://example.com/img.png"'))
 })
 
 test('skips data URIs', () => {
-  const p = new Md2Html({ resolveImageUri: () => 'resolved' })
+  const p = new Md2Html({ fileResolver: { resolveImageUri: () => 'resolved', exists: () => true } })
   const result = p.renderBody('![alt](data:image/png;base64,abc)', true, '/some/dir')
   assert.ok(result.includes('src="data:image/png;base64,abc"'))
 })
