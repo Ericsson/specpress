@@ -92,6 +92,9 @@
 		"./lib/md2html/htmlDiff": {
 			"require": "./lib/md2html/htmlDiff.js"
 		},
+		"./lib/md2html/exportHtml": {
+			"require": "./lib/md2html/exportHtml.js"
+		},
 		"./lib/md2docx/crCoverPageRenderer": {
 			"require": "./lib/md2docx/crCoverPageRenderer.js"
 		},
