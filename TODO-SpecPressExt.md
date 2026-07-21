@@ -4,39 +4,22 @@ After deploying the updated specpress library (with unified SVG/PNG caching for
 mermaid and mscgen), the following changes should be made in the
 [SpecPressExt](https://github.com/Ericsson/SpecPressExt) repository.
 
-## Keep the diagram cache warm from VS Code
+## ✅ Keep the diagram cache warm from VS Code
 
-**Problem**: The `md2html.js` HTML preview now serves mermaid and mscgen diagrams
+**DONE** — Implemented via `renderMermaidCached`/`renderMscgenCached` in
+`diagramRenderers.js`, `mermaidWebviewRenderer.js` in SpecPressExt, and
+`makeMermaidRenderer` in `helpers.js`. Cache is also populated before DOCX
+export and cleaned up with a debounced 5s trigger on `.md`/`.asn` save.
+
+~~**Problem**: The `md2html.js` HTML preview now serves mermaid and mscgen diagrams
 as pre-rendered SVGs from the `cached/` directory. When running inside VS Code,
 if the cache is cold (new/modified diagram), the library falls back to launching
 an external Chrome/Edge browser via `renderMermaidBatch`. This works but is
-slower and requires an external browser installation.
+slower and requires an external browser installation.~~
 
-**Solution**: SpecPressExt should proactively populate the cache using its
+~~**Solution**: SpecPressExt should proactively populate the cache using its
 built-in webview renderer (VS Code's integrated Chromium), so the HTML preview
-can always serve from cache without needing an external browser.
-
-### Implementation steps
-
-1. When a markdown file with mermaid fences is saved/changed, call
-   `renderWithCache(codes, config, specRoot, webviewRendererFn)` from
-   `mermaidHandler.js`. This will:
-   - Skip already-cached diagrams (no re-render needed)
-   - Render uncached diagrams via the VS Code webview
-   - Write both SVG and PNG to the `cached/` directory
-
-2. The `webviewRendererFn` should wrap `renderMermaidViaWebview(vscode, codes,
-   config, bundlePath)` — which the extension already uses for DOCX export.
-
-3. After the cache is updated, trigger a preview refresh. The `md2html.js` fence
-   renderer will read the freshly cached SVGs.
-
-### Benefits
-
-- No external Chrome/Edge dependency for live preview in VS Code
-- Preview renders instantly from cache (file read, no browser launch)
-- Cache stays warm and is committed to git — CI and colleagues benefit too
-- Single rendering path for preview, HTML export, and DOCX export
+can always serve from cache without needing an external browser.~~
 
 ## MSC-Gen support in SpecPressExt
 
@@ -47,21 +30,16 @@ The specpress library now supports `mscgen` code fences. SpecPressExt may need:
 - [ ] Optionally: warn the user if `msc-gen` is not installed when mscgen fences
       are detected (similar to the browser warning for mermaid)
 
-## Fix image URI handling in SpecPressExt HTML export
+## ✅ Fix image URI handling in SpecPressExt HTML export
 
-When exporting HTML from SpecPressExt, regular images (PNGs) retain their
-`vscode-resource` URIs instead of being rewritten to relative `media/` paths.
-The export should:
+**DONE** — `exportHtml.js` now calls `renderMarkdownForExport` (with
+`forPreview=false`) so no `vscode-resource` URIs are ever injected. The export's
+own `<img>` regex resolves relative paths against the spec root parent and source
+file directories, copies them to `media/`, and rewrites the `src` accordingly.
 
-- [ ] Detect `vscode-resource` URIs in `<img src="...">` tags
-- [ ] Resolve them back to absolute file paths
-- [ ] Copy the files to the `media/` directory and rewrite the URIs
-
-The specpress library's `exportHtmlFromDirectory` already handles this correctly
-for CLI exports (it resolves absolute paths and copies to `media/`). The issue is
-that SpecPressExt's preview path injects `vscode-resource` URIs via
-`resolveImageUri`, and the HTML export captures that output without converting
-back.
+- [x] Detect `vscode-resource` URIs in `<img src="...">` tags
+- [x] Resolve them back to absolute file paths
+- [x] Copy the files to the `media/` directory and rewrite the URIs
 
 ## Investigate LibreOffice SVG rendering issues
 

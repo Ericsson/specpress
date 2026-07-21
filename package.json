@@ -41,6 +41,21 @@
 		"./lib/common/gitHelpers": {
 			"require": "./lib/common/gitHelpers.js"
 		},
+		"./lib/common/fileResolver": {
+			"require": "./lib/common/fileResolver.js"
+		},
+		"./lib/common/diagramRenderers": {
+			"require": "./lib/common/diagramRenderers.js"
+		},
+		"./lib/common/diagramCache": {
+			"require": "./lib/common/diagramCache.js"
+		},
+		"./lib/common/mermaidRenderer": {
+			"require": "./lib/common/mermaidRenderer.js"
+		},
+		"./lib/common/mscgenRenderer": {
+			"require": "./lib/common/mscgenRenderer.js"
+		},
 		"./lib/common/docxMerge": {
 			"require": "./lib/common/docxMerge.js"
 		},

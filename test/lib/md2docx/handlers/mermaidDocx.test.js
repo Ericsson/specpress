@@ -3,8 +3,10 @@ const fs = require('fs')
 const path = require('path')
 const os = require('os')
 const JSZip = require('jszip')
-const { MarkdownToDocxConverter } = require('../../../../lib/md2docx/md2docx')
-const { renderWithCache, getSvgDimensions } = require('../../../../lib/md2docx/handlers/mermaidHandler')
+const { Md2Docx } = require('../../../../lib/md2docx/md2docx')
+const { renderMermaidCached } = require('../../../../lib/common/diagramRenderers')
+const { cleanupDiagramCache } = require('../../../../lib/common/diagramCache')
+const { getSvgDimensions } = require('../../../../lib/common/diagramCache')
 
 let passed = 0
 let failed = 0
@@ -49,19 +51,16 @@ sequenceDiagram
 `
 
 async function convertAndRead(md, renderer) {
-  const converter = new MarkdownToDocxConverter(null, '', renderer)
+  const converter = new Md2Docx({ mermaidRenderer: renderer })
   const tmpDir = os.tmpdir()
   const ts = Date.now() + '_' + Math.random().toString(36).slice(2)
-  const mdPath = path.join(tmpDir, `.~mermaid_test_${ts}.md`)
   const docxPath = path.join(tmpDir, `.~mermaid_test_${ts}.docx`)
-  fs.writeFileSync(mdPath, md)
   try {
-    await converter.convert(mdPath, docxPath, tmpDir)
+    await converter.convert(md, docxPath, tmpDir)
     const buf = fs.readFileSync(docxPath)
     const zip = await JSZip.loadAsync(buf)
     return { zip, converter }
   } finally {
-    if (fs.existsSync(mdPath)) fs.unlinkSync(mdPath)
     if (fs.existsSync(docxPath)) fs.unlinkSync(docxPath)
   }
 }
@@ -175,36 +174,36 @@ async function run() {
     return specRoot
   }
 
-  await test('renderWithCache calls renderFn for uncached diagrams', async () => {
+  await test('renderMermaidCached calls renderFn for uncached diagrams', async () => {
     const code = 'graph TD; A-->B'
     const specRoot = makeSpecRoot([code])
     let renderCalled = false
     const renderFn = async (codes) => { renderCalled = true; return codes.map(() => ({ svg: MOCK_SVG, png: null })) }
-    const results = await renderWithCache([code], '{}', specRoot, renderFn)
+    const results = await renderMermaidCached([code], '{}', specRoot, renderFn)
     assert.ok(renderCalled, 'renderFn should be called')
     assert.strictEqual(results.length, 1)
     assert.ok(results[0].svg.includes('<text>mock</text>'), 'should return rendered SVG')
     fs.rmSync(path.dirname(specRoot), { recursive: true })
   })
 
-  await test('renderWithCache serves cached SVG without calling renderFn', async () => {
+  await test('renderMermaidCached serves cached SVG without calling renderFn', async () => {
     const code = 'graph TD; X-->Y'
     const specRoot = makeSpecRoot([code])
     const renderFn = async (codes) => codes.map(() => ({ svg: MOCK_SVG, png: null }))
-    await renderWithCache([code], '{}', specRoot, renderFn)
+    await renderMermaidCached([code], '{}', specRoot, renderFn)
     let calledAgain = false
     const renderFn2 = async (codes) => { calledAgain = true; return codes.map(() => ({ svg: '<svg>new</svg>', png: null })) }
-    const results = await renderWithCache([code], '{}', specRoot, renderFn2)
+    const results = await renderMermaidCached([code], '{}', specRoot, renderFn2)
     assert.ok(!calledAgain, 'renderFn should not be called for cached diagram')
     assert.ok(results[0].svg.includes('<text>mock</text>'), 'should return original cached SVG')
     fs.rmSync(path.dirname(specRoot), { recursive: true })
   })
 
-  await test('renderWithCache re-renders when source changes', async () => {
+  await test('renderMermaidCached re-renders when source changes', async () => {
     const specRoot = makeSpecRoot(['graph TD; A-->C'])
     const renderFn = async (codes) => codes.map(c => ({ svg: `<svg>${c}</svg>`, png: null }))
-    await renderWithCache(['graph TD; A-->B'], '{}', specRoot, renderFn)
-    const results = await renderWithCache(['graph TD; A-->C'], '{}', specRoot, renderFn)
+    await renderMermaidCached(['graph TD; A-->B'], '{}', specRoot, renderFn)
+    const results = await renderMermaidCached(['graph TD; A-->C'], '{}', specRoot, renderFn)
     assert.ok(results[0].svg.includes('A-->C'), 'should render the new diagram')
     fs.rmSync(path.dirname(specRoot), { recursive: true })
   })
@@ -214,12 +213,13 @@ async function run() {
     const code2 = 'graph TD; Remove-->This'
     const specRoot = makeSpecRoot([code1, code2])
     const renderFn = async (codes) => codes.map(c => ({ svg: `<svg>${c}</svg>`, png: null }))
-    await renderWithCache([code1, code2], '{}', specRoot, renderFn)
+    await renderMermaidCached([code1, code2], '{}', specRoot, renderFn)
     const cacheDir = path.join(specRoot, '..', 'cached')
     assert.strictEqual(fs.readdirSync(cacheDir).filter(f => f.endsWith('.svg')).length, 2, 'should have 2 cached SVGs')
-    // Remove code2 from the MD file, re-render only code1
+    // Remove code2 from the MD file, re-render only code1, then cleanup explicitly
     fs.writeFileSync(path.join(specRoot, 'test.md'), '# Test\n\n```mermaid\n' + code1 + '\n```\n')
-    await renderWithCache([code1], '{}', specRoot, renderFn)
+    await renderMermaidCached([code1], '{}', specRoot, renderFn)
+    cleanupDiagramCache(specRoot, { mermaidConfig: '{}' })
     const remaining = fs.readdirSync(cacheDir).filter(f => f.endsWith('.svg'))
     assert.strictEqual(remaining.length, 1, 'stale SVG should be deleted')
     fs.rmSync(path.dirname(specRoot), { recursive: true })
@@ -230,7 +230,7 @@ async function run() {
     const specRoot = makeSpecRoot(codes)
     let callCount = 0
     const renderFn = async (c) => { callCount++; return c.map(x => ({ svg: `<svg>${x}</svg>`, png: null })) }
-    const results = await renderWithCache(codes, '{}', specRoot, renderFn)
+    const results = await renderMermaidCached(codes, '{}', specRoot, renderFn)
     assert.strictEqual(callCount, 1, 'renderFn should be called once for all uncached')
     assert.strictEqual(results.length, 3)
     assert.ok(results[0].svg.includes('A-->B'))
@@ -244,10 +244,10 @@ async function run() {
     const specRoot = makeSpecRoot([code1, code2])
     const renderFn = async (codes) => codes.map(c => ({ svg: `<svg>${c}</svg>`, png: null }))
     // Pre-cache code1 only
-    await renderWithCache([code1], '{}', specRoot, renderFn)
+    await renderMermaidCached([code1], '{}', specRoot, renderFn)
     let renderedCodes = null
     const renderFn2 = async (codes) => { renderedCodes = codes; return codes.map(c => ({ svg: `<svg>${c}</svg>`, png: null })) }
-    const results = await renderWithCache([code1, code2], '{}', specRoot, renderFn2)
+    const results = await renderMermaidCached([code1, code2], '{}', specRoot, renderFn2)
     assert.ok(renderedCodes, 'renderFn should be called for uncached')
     assert.strictEqual(renderedCodes.length, 1, 'only uncached code should be rendered')
     assert.ok(renderedCodes[0].includes('New-->Two'), 'should render only the new diagram')
@@ -260,10 +260,10 @@ async function run() {
     const code = 'graph TD; Same-->Code'
     const specRoot = makeSpecRoot([code])
     const renderFn = async (codes) => codes.map(() => ({ svg: '<svg>config1</svg>', png: null }))
-    await renderWithCache([code], '{"theme":"dark"}', specRoot, renderFn)
+    await renderMermaidCached([code], '{"theme":"dark"}', specRoot, renderFn)
     let called = false
     const renderFn2 = async (codes) => { called = true; return codes.map(() => ({ svg: '<svg>config2</svg>', png: null })) }
-    await renderWithCache([code], '{"theme":"forest"}', specRoot, renderFn2)
+    await renderMermaidCached([code], '{"theme":"forest"}', specRoot, renderFn2)
     assert.ok(called, 'different config should miss cache and call renderFn')
     fs.rmSync(path.dirname(specRoot), { recursive: true })
   })
@@ -276,7 +276,7 @@ async function run() {
     const content = fs.readFileSync(mdPath, 'utf8').replace(/\n/g, '\r\n')
     fs.writeFileSync(mdPath, content)
     const renderFn = async (codes) => codes.map(() => ({ svg: MOCK_SVG, png: null }))
-    await renderWithCache([codeLF], '{}', specRoot, renderFn)
+    await renderMermaidCached([codeLF], '{}', specRoot, renderFn)
     const cacheDir = path.join(specRoot, '..', 'cached')
     const svgCount = fs.readdirSync(cacheDir).filter(f => f.endsWith('.svg')).length
     assert.strictEqual(svgCount, 1, 'cached SVG should survive cleanup with CRLF source')
@@ -293,12 +293,13 @@ async function run() {
     fs.writeFileSync(path.join(specRoot, 'root.md'), '```mermaid\n' + code1 + '\n```\n')
     fs.writeFileSync(path.join(subDir, 'nested.md'), '```mermaid\n' + code2 + '\n```\n')
     const renderFn = async (codes) => codes.map(c => ({ svg: `<svg>${c}</svg>`, png: null }))
-    await renderWithCache([code1, code2], '{}', specRoot, renderFn)
+    await renderMermaidCached([code1, code2], '{}', specRoot, renderFn)
     const cacheDir = path.join(root, 'cached')
     assert.strictEqual(fs.readdirSync(cacheDir).filter(f => f.endsWith('.svg')).length, 2, 'both SVGs cached')
     // Remove the subdirectory file
     fs.unlinkSync(path.join(subDir, 'nested.md'))
-    await renderWithCache([code1], '{}', specRoot, renderFn)
+    await renderMermaidCached([code1], '{}', specRoot, renderFn)
+    cleanupDiagramCache(specRoot, { mermaidConfig: '{}' })
     assert.strictEqual(fs.readdirSync(cacheDir).filter(f => f.endsWith('.svg')).length, 1, 'stale sub SVG removed')
     fs.rmSync(root, { recursive: true })
   })

@@ -51,9 +51,16 @@ for (const file of testFiles) {
 }
 
 console.log('\n\n════════════════════════════════════════')
-console.log(`${testFiles.length} test file(s), ${results.filter(r => !r.ok).length} failed`)
+const failedFiles = results.filter(r => !r.ok)
+console.log(`${testFiles.length} test file(s), ${failedFiles.length} failed`)
 if (totalPassed || totalFailed) {
   console.log(`${totalPassed} passed, ${totalFailed} failed (total)`)
+}
+if (failedFiles.length > 0) {
+  console.log('\nFailed test files:')
+  for (const r of failedFiles) {
+    console.log(`  node "test/${r.file.replace(/\\/g, '/')}"`)
+  }
 }
 
 // Run RAN4 TypeScript tests if tsx is available

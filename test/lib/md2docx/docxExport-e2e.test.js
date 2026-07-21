@@ -14,7 +14,7 @@ const fs = require('fs')
 const path = require('path')
 const os = require('os')
 const JSZip = require('jszip')
-const { MarkdownToDocxConverter } = require('../../../lib/md2docx/md2docx')
+const { Md2Docx } = require('../../../lib/md2docx/md2docx')
 
 let passed = 0
 let failed = 0
@@ -71,15 +71,16 @@ async function exportToDocx(md, opts = {}) {
   const mdPath = path.join(specDir, '01 Test.md')
   const docxPath = path.join(tempDir, 'output.docx')
 
-  const converter = new MarkdownToDocxConverter(
-    opts.mermaidConfig || null,
-    specDir,
-    opts.mermaidRenderer || null,
-    null,
-    { updateFields: false, mscgenConfig: opts.mscgenConfig || null }
-  )
+  const converter = new Md2Docx({
+    mermaidConfig: opts.mermaidConfig || null,
+    specRootPath: specDir,
+    mermaidRenderer: opts.mermaidRenderer || null,
+    updateFields: false,
+    mscgenConfig: opts.mscgenConfig || null
+  })
 
-  await converter.convert(mdPath, docxPath, specDir, opts.frontPageData || null, {
+  const mdContent = fs.readFileSync(mdPath, 'utf8')
+  await converter.convert(mdContent, docxPath, specDir, opts.frontPageData || null, {
     crCoverPageData: opts.crCoverPageData || null
   })
 

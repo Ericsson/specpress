@@ -3,7 +3,7 @@ const fs = require('fs')
 const path = require('path')
 const os = require('os')
 const JSZip = require('jszip')
-const { MarkdownToDocxConverter } = require('../../../lib/md2docx/md2docx')
+const { Md2Docx } = require('../../../lib/md2docx/md2docx')
 
 let passed = 0
 let failed = 0
@@ -24,20 +24,17 @@ async function test(name, fn) {
  * Converts markdown to DOCX and returns the parsed document.xml content.
  */
 async function mdToDocXml(md) {
-  const converter = new MarkdownToDocxConverter(null, '')
+  const converter = new Md2Docx()
   const tmp = os.tmpdir()
   const ts = Date.now() + '_' + Math.random().toString(36).slice(2)
-  const mdPath = path.join(tmp, `.~docx_test_${ts}.md`)
   const docxPath = path.join(tmp, `.~docx_test_${ts}.docx`)
-  fs.writeFileSync(mdPath, md)
   try {
-    await converter.convert(mdPath, docxPath, tmp)
+    await converter.convert(md, docxPath, tmp)
     const buf = fs.readFileSync(docxPath)
     const zip = await JSZip.loadAsync(buf)
     const xml = await zip.file('word/document.xml').async('string')
     return { xml, zip, converter }
   } finally {
-    if (fs.existsSync(mdPath)) fs.unlinkSync(mdPath)
     if (fs.existsSync(docxPath)) fs.unlinkSync(docxPath)
   }
 }
@@ -442,38 +439,32 @@ async function run() {
   console.log('\\nupdateFields option')
 
   await test('updateFields defaults to true in settings.xml', async () => {
-    const converter = new MarkdownToDocxConverter(null, '')
+    const converter = new Md2Docx()
     const tmp = os.tmpdir()
     const ts = Date.now() + '_' + Math.random().toString(36).slice(2)
-    const mdPath = path.join(tmp, `.~uf_true_${ts}.md`)
     const docxPath = path.join(tmp, `.~uf_true_${ts}.docx`)
-    fs.writeFileSync(mdPath, '# Hello\\n')
     try {
-      await converter.convert(mdPath, docxPath, tmp)
+      await converter.convert('# Hello\n', docxPath, tmp)
       const zip = await JSZip.loadAsync(fs.readFileSync(docxPath))
       const settings = await zip.file('word/settings.xml').async('string')
       assert.ok(settings.includes('updateFields'), 'should contain updateFields')
       assert.ok(!settings.includes('updateFields w:val="false"'), 'updateFields should not have val=false')
     } finally {
-      if (fs.existsSync(mdPath)) fs.unlinkSync(mdPath)
       if (fs.existsSync(docxPath)) fs.unlinkSync(docxPath)
     }
   })
 
   await test('updateFields: false omits updateFields from settings.xml', async () => {
-    const converter = new MarkdownToDocxConverter(null, '', null, null, { updateFields: false })
+    const converter = new Md2Docx({ updateFields: false })
     const tmp = os.tmpdir()
     const ts = Date.now() + '_' + Math.random().toString(36).slice(2)
-    const mdPath = path.join(tmp, `.~uf_false_${ts}.md`)
     const docxPath = path.join(tmp, `.~uf_false_${ts}.docx`)
-    fs.writeFileSync(mdPath, '# Hello\\n')
     try {
-      await converter.convert(mdPath, docxPath, tmp)
+      await converter.convert('# Hello\n', docxPath, tmp)
       const zip = await JSZip.loadAsync(fs.readFileSync(docxPath))
       const settings = await zip.file('word/settings.xml').async('string')
       assert.ok(!settings.includes('updateFields'), 'should not contain updateFields')
     } finally {
-      if (fs.existsSync(mdPath)) fs.unlinkSync(mdPath)
       if (fs.existsSync(docxPath)) fs.unlinkSync(docxPath)
     }
   })
@@ -481,9 +472,7 @@ async function run() {
   console.log('\nfront page and CR cover page in DOCX')
 
   await test('convert with crCoverPageData produces CR cover page tables', async () => {
-    const mdPath = path.join(os.tmpdir(), `fp_cr_${Date.now()}.md`)
-    const docxPath = mdPath.replace('.md', '.docx')
-    fs.writeFileSync(mdPath, '# Hello\n\nWorld\n')
+    const docxPath = path.join(os.tmpdir(), `fp_cr_${Date.now()}.docx`)
     const crData = {
       'TDoc Number': 'R2-001', Specification: '38.331', 'Current version': '1.0.0',
       CR: 1, rev: 1, Affected: {}, Title: 'Test CR', 'Source to WG': ['Ericsson'],
@@ -493,8 +482,8 @@ async function run() {
       'Other specs affected': {}, 'Other comments': ''
     }
     try {
-      const converter = new MarkdownToDocxConverter(null, '')
-      await converter.convert(mdPath, docxPath, os.tmpdir(), null, { crCoverPageData: crData })
+      const converter = new Md2Docx()
+      await converter.convert('# Hello\n\nWorld\n', docxPath, os.tmpdir(), null, { crCoverPageData: crData })
       const buf = fs.readFileSync(docxPath)
       const zip = await JSZip.loadAsync(buf)
       const xml = await zip.file('word/document.xml').async('string')
@@ -502,19 +491,16 @@ async function run() {
       assert.ok(texts.some(t => t.includes('CHANGE REQUEST')), 'should contain CR cover page')
       assert.ok(texts.some(t => t.includes('Test CR')), 'should contain CR title')
     } finally {
-      if (fs.existsSync(mdPath)) fs.unlinkSync(mdPath)
       if (fs.existsSync(docxPath)) fs.unlinkSync(docxPath)
     }
   })
 
   await test('convert with frontPageData and no crCoverPageData uses standard front page', async () => {
-    const mdPath = path.join(os.tmpdir(), `fp_std_${Date.now()}.md`)
-    const docxPath = mdPath.replace('.md', '.docx')
-    fs.writeFileSync(mdPath, '# Hello\n\nWorld\n')
+    const docxPath = path.join(os.tmpdir(), `fp_std_${Date.now()}.docx`)
     try {
       const frontPageData = { SPEC_NUMBER: '99.999', VERSION: '1.0.0', TITLE: 'Test Spec' }
-      const converter = new MarkdownToDocxConverter(null, '')
-      await converter.convert(mdPath, docxPath, os.tmpdir(), frontPageData, {})
+      const converter = new Md2Docx()
+      await converter.convert('# Hello\n\nWorld\n', docxPath, os.tmpdir(), frontPageData, {})
       const buf = fs.readFileSync(docxPath)
       const zip = await JSZip.loadAsync(buf)
       const xml = await zip.file('word/document.xml').async('string')
@@ -522,15 +508,12 @@ async function run() {
       assert.ok(texts.some(t => t.includes('99.999')), 'should contain spec number from front page')
       assert.ok(!texts.some(t => t.includes('CHANGE REQUEST')), 'should NOT contain CR cover page')
     } finally {
-      if (fs.existsSync(mdPath)) fs.unlinkSync(mdPath)
       if (fs.existsSync(docxPath)) fs.unlinkSync(docxPath)
     }
   })
 
   await test('convert with both frontPage and crCoverPageData uses CR cover page only', async () => {
-    const mdPath = path.join(os.tmpdir(), `fp_both_${Date.now()}.md`)
-    const docxPath = mdPath.replace('.md', '.docx')
-    fs.writeFileSync(mdPath, '# Hello\n\nWorld\n')
+    const docxPath = path.join(os.tmpdir(), `fp_both_${Date.now()}.docx`)
     const crData = {
       'TDoc Number': 'R2-002', Specification: '38.331', 'Current version': '1.0.0',
       CR: 2, rev: 0, Affected: {}, Title: 'CR wins', 'Source to WG': ['Nokia'],
@@ -542,8 +525,8 @@ async function run() {
     try {
       const { buildFrontPageDocx } = require('../../../lib/md2docx/frontPage')
       const frontPage = buildFrontPageDocx({ SPEC_NUMBER: '99.999', VERSION: '1.0.0', TITLE: 'Test Spec' })
-      const converter = new MarkdownToDocxConverter(null, '')
-      await converter.convert(mdPath, docxPath, os.tmpdir(), frontPage, { crCoverPageData: crData })
+      const converter = new Md2Docx()
+      await converter.convert('# Hello\n\nWorld\n', docxPath, os.tmpdir(), frontPage, { crCoverPageData: crData })
       const buf = fs.readFileSync(docxPath)
       const zip = await JSZip.loadAsync(buf)
       const xml = await zip.file('word/document.xml').async('string')
@@ -552,7 +535,6 @@ async function run() {
       assert.ok(texts.some(t => t.includes('CR wins')), 'should contain CR title')
       assert.ok(!texts.some(t => t.includes('99.999')), 'should NOT contain standard front page spec number')
     } finally {
-      if (fs.existsSync(mdPath)) fs.unlinkSync(mdPath)
       if (fs.existsSync(docxPath)) fs.unlinkSync(docxPath)
     }
   })
@@ -562,4 +544,7 @@ async function run() {
 }
 
 run()
+
+
+
 

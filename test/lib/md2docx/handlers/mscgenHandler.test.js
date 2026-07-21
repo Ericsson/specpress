@@ -4,14 +4,9 @@ const path = require('path')
 const os = require('os')
 
 const { parseMscgenPreamble, applyMscgenPreamble, loadMscgenConfig } = require('../../../../lib/common/mscgenConfig')
-const {
-  findMscgen,
-  renderMscgenBatch,
-  renderMscgenWithCache,
-  getSvgDimensions,
-  mscgenCacheKey,
-  svgCacheDir
-} = require('../../../../lib/md2docx/handlers/mscgenHandler')
+const { findMscgen, renderMscgenBatch } = require('../../../../lib/common/mscgenRenderer')
+const { renderMscgenCached } = require('../../../../lib/common/diagramRenderers')
+const { getSvgDimensions, cacheKey: mscgenCacheKey, svgCacheDir } = require('../../../../lib/common/diagramCache')
 
 let passed = 0
 let failed = 0
@@ -223,7 +218,7 @@ async function run() {
     console.log('  (skipped: msc-gen not installed)')
   }
 
-  console.log('\nrenderMscgenWithCache')
+  console.log('\nrenderMscgenCached')
 
   await test('calls renderFn for uncached diagrams', async () => {
     const tempDir = path.join(os.tmpdir(), `mscgen-cache-test-${Date.now()}`)
@@ -235,7 +230,7 @@ async function run() {
         renderCalled = true
         return codes.map(() => ({ svg: '<svg>mock</svg>', png: Buffer.from('PNG') }))
       }
-      const results = await renderMscgenWithCache(['u: UE;'], '{}', specRoot, mockRender)
+      const results = await renderMscgenCached(['u: UE;'], '{}', specRoot, mockRender)
       assert.ok(renderCalled)
       assert.strictEqual(results.length, 1)
       assert.strictEqual(results[0].svg, '<svg>mock</svg>')
@@ -257,7 +252,7 @@ async function run() {
 
       let renderCalled = false
       const mockRender = () => { renderCalled = true; return [] }
-      const results = await renderMscgenWithCache([code], '{}', specRoot, mockRender)
+      const results = await renderMscgenCached([code], '{}', specRoot, mockRender)
       assert.ok(!renderCalled)
       assert.strictEqual(results[0].svg, '<svg>cached</svg>')
     } finally {
@@ -275,7 +270,7 @@ async function run() {
       // Write an md file referencing this code so cleanup won't remove the cache
       fs.writeFileSync(path.join(tempDir, 'spec', 'test.md'), '```mscgen\na: A;\n```\n')
       const mockRender = () => [{ svg: '<svg>new</svg>', png: Buffer.from('PNGDATA') }]
-      await renderMscgenWithCache([code], '{}', specRoot, mockRender)
+      await renderMscgenCached([code], '{}', specRoot, mockRender)
 
       const key = mscgenCacheKey(code, '{}')
       assert.ok(fs.existsSync(path.join(cacheDir, `${key}.svg`)))

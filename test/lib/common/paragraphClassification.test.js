@@ -1,6 +1,6 @@
 const assert = require('assert')
 const { Md2Html } = require('../../../lib/md2html/md2html')
-const { MarkdownToDocxConverter, buildInlineRuns } = require('../../../lib/md2docx/md2docx')
+const { Md2Docx, buildInlineRuns } = require('../../../lib/md2docx/md2docx')
 const { PARA } = require('../../../lib/common/specProcessor')
 
 let passed = 0
@@ -49,7 +49,7 @@ function getDocxStyle(paragraph) {
  * docElements array (without writing to disk).
  */
 async function docxElements(markdown) {
-  const converter = new MarkdownToDocxConverter(null)
+  const converter = new Md2Docx()
   const tokens = converter.md.parse(markdown, { _baseDir: '' })
   converter.docElements = []
   converter.imageCount = 0

@@ -34,7 +34,7 @@ async function runE2ETest() {
     console.log('Step 1: Generating DOCX files from markdown sources...')
 
     const fixturesDir = __dirname
-    const { MarkdownToDocxConverter } = require('../../../lib/md2docx/md2docx')
+    const { Md2Docx } = require('../../../lib/md2docx/md2docx')
 
     const versions = ['v1', 'v2', 'v3', 'v4']
     const docxFiles = []
@@ -49,10 +49,9 @@ async function runE2ETest() {
 
       process.stdout.write(`  Converting test-${version}.md... `)
 
-      const converter = new MarkdownToDocxConverter(
-        null, null, null, null, { updateFields: false }
-      )
-      await converter.convert(mdPath, docxPath, fixturesDir, null, {})
+      const converter = new Md2Docx({ updateFields: false })
+      const md = fs.readFileSync(mdPath, 'utf8')
+      await converter.convert(md, docxPath, fixturesDir, null, {})
       docxFiles.push(docxPath)
       console.log('\u2713')
     }

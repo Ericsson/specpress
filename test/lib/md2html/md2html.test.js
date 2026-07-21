@@ -23,7 +23,7 @@ console.log('constructor')
 test('uses defaults when no options provided', () => {
   const p = new Md2Html()
   assert.strictEqual(p.css, '')
-  assert.strictEqual(p.mermaidConfig, '{}')
+  assert.ok(typeof p.mermaidConfig === 'string' && p.mermaidConfig.length > 0, 'mermaidConfig should be loaded from default')
   assert.deepStrictEqual(p.customRenderers, {})
   assert.strictEqual(p.resolveImageUri, null)
   assert.strictEqual(p.extraHeadContent, '')

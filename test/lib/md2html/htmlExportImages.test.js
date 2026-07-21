@@ -145,7 +145,7 @@ async function run() {
     const { findBrowser } = require('../../../lib/md2docx/handlers/mermaidHandler')
     if (!findBrowser()) {
       console.log('    (skipped: no browser available)')
-      passed++ // count as passed since it's a conditional test
+      passed++
       return
     }
     const md = '# Test\n\n```mermaid\ngraph TD; X-->Y\n```\n'

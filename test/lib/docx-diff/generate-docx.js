@@ -29,15 +29,13 @@ async function generateDocx() {
     console.log(`Converting test-${version}.md -> test-${version}.docx...`)
 
     try {
-      const converter = new MarkdownToDocxConverter(
-        null, // mermaidConfig
-        null, // specRoot (no section numbering for simple test)
-        null, // mermaidRenderer (skip mermaid)
-        null, // fileResolver
-        { updateFields: false }
-      )
+      const converter = new MarkdownToDocxConverter({
+        specRootPath: null,
+        updateFields: false
+      })
 
-      await converter.convert(mdPath, docxPath, fixturesDir, null, {})
+      const md = fs.readFileSync(mdPath, 'utf8')
+      await converter.convert(md, docxPath, fixturesDir, null, {})
       console.log(`  ✓ Created ${docxPath}`)
     } catch (e) {
       console.error(`  ✗ Failed: ${e.message}`)

@@ -3,12 +3,8 @@ const fs = require('fs')
 const path = require('path')
 const { execSync } = require('child_process')
 const os = require('os')
-const {
-  extractFilesFromCommit,
-  makeCachedFileResolver,
-  makeCachedTextReader,
-  collectFilesFromCommit
-} = require('../../../lib/common/gitHelpers')
+const { collectFilesFromCommit } = require('../../../lib/common/gitHelpers')
+const { FileResolver, createLocalResolver, createCommitResolver } = require('../../../lib/common/fileResolver')
 
 let passed = 0
 let failed = 0
@@ -46,153 +42,108 @@ execSync('git -c user.email="test@test.com" -c user.name="Test" commit -m "initi
 
 const commitHash = execSync('git rev-parse HEAD', { cwd: repoDir, encoding: 'utf8' }).trim()
 
-// ── extractFilesFromCommit ──
+// ── makeCachedFileResolver / makeCachedTextReader replaced by FileResolver ──
 
-console.log('extractFilesFromCommit')
+console.log('\nFileResolver — local mode')
 
-test('extracts .md files from commit', () => {
-  const cache = extractFilesFromCommit(repoDir, commitHash, [path.join(repoDir, 'spec')])
-  const keys = [...cache.keys()]
-  const mdFiles = keys.filter(k => k.endsWith('.md'))
-  assert.strictEqual(mdFiles.length, 2, `Expected 2 .md files, got ${mdFiles.length}`)
+test('readFile returns file content', () => {
+  const resolver = new FileResolver(repoDir)
+  const result = resolver.readFile(path.join(repoDir, 'spec', '01.md'), 'utf8')
+  assert.ok(result.includes('# Section 1'))
 })
 
-test('extracts .asn files from commit', () => {
-  const cache = extractFilesFromCommit(repoDir, commitHash, [path.join(repoDir, 'spec')])
-  const keys = [...cache.keys()]
-  const asnFiles = keys.filter(k => k.endsWith('.asn'))
-  assert.strictEqual(asnFiles.length, 1)
-})
-
-test('extracts .json files from commit', () => {
-  const cache = extractFilesFromCommit(repoDir, commitHash, [path.join(repoDir, 'spec')])
-  const keys = [...cache.keys()]
-  const jsonFiles = keys.filter(k => k.endsWith('.json'))
-  assert.strictEqual(jsonFiles.length, 1)
-})
-
-test('extracts image files as Buffer', () => {
-  const cache = extractFilesFromCommit(repoDir, commitHash, [path.join(repoDir, 'spec')])
-  const keys = [...cache.keys()]
-  const pngFile = keys.find(k => k.endsWith('.png'))
-  assert.ok(pngFile, 'should find .png file')
-  assert.ok(Buffer.isBuffer(cache.get(pngFile)), 'image should be a Buffer')
-})
-
-test('extracts text files as string', () => {
-  const cache = extractFilesFromCommit(repoDir, commitHash, [path.join(repoDir, 'spec')])
-  const keys = [...cache.keys()]
-  const mdFile = keys.find(k => k.endsWith('01.md'))
-  assert.ok(mdFile)
-  assert.strictEqual(typeof cache.get(mdFile), 'string')
-  assert.ok(cache.get(mdFile).includes('# Section 1'))
-})
-
-test('does not extract .txt or .js files', () => {
-  const cache = extractFilesFromCommit(repoDir, commitHash, [path.join(repoDir, 'spec')])
-  const keys = [...cache.keys()]
-  const txtFiles = keys.filter(k => k.endsWith('.txt') || k.endsWith('.js'))
-  assert.strictEqual(txtFiles.length, 0, `Should not extract .txt/.js, got: ${txtFiles}`)
-})
-
-test('extracts files from subdirectories', () => {
-  const cache = extractFilesFromCommit(repoDir, commitHash, [path.join(repoDir, 'spec')])
-  const keys = [...cache.keys()]
-  const nested = keys.find(k => k.includes('nested.md'))
-  assert.ok(nested, 'should find nested.md in subdirectory')
-  assert.ok(cache.get(nested).includes('## Nested'))
-})
-
-test('handles non-existent path gracefully', () => {
-  const cache = extractFilesFromCommit(repoDir, commitHash, [path.join(repoDir, 'nonexistent')])
-  assert.strictEqual(cache.size, 0)
-})
-
-test('returns absolute paths as keys', () => {
-  const cache = extractFilesFromCommit(repoDir, commitHash, [path.join(repoDir, 'spec')])
-  for (const key of cache.keys()) {
-    assert.ok(path.isAbsolute(key), `Key should be absolute: ${key}`)
-  }
-})
-
-// ── makeCachedFileResolver ──
-
-console.log('\nmakeCachedFileResolver')
-
-test('returns cached content on exact match', () => {
-  const cache = new Map()
-  cache.set('/repo/file.png', Buffer.from('image data'))
-  const resolver = makeCachedFileResolver(cache)
-  const result = resolver('/repo/file.png')
+test('readFile returns Buffer when no encoding', () => {
+  const resolver = new FileResolver(repoDir)
+  const result = resolver.readFile(path.join(repoDir, 'spec', 'image.png'))
   assert.ok(Buffer.isBuffer(result))
-  assert.strictEqual(result.toString(), 'image data')
 })
 
-test('returns cached content on case-insensitive match', () => {
-  const cache = new Map()
-  cache.set('C:\\Repo\\File.md', 'content')
-  const resolver = makeCachedFileResolver(cache)
-  const result = resolver('c:\\repo\\file.md')
-  assert.strictEqual(result, 'content')
+test('exists returns true for existing file', () => {
+  const resolver = new FileResolver(repoDir)
+  assert.ok(resolver.exists(path.join(repoDir, 'spec', '01.md')))
 })
 
-test('returns cached content with slash normalization', () => {
-  const cache = new Map()
-  cache.set('C:\\Repo\\sub\\file.md', 'hello')
-  const resolver = makeCachedFileResolver(cache)
-  const result = resolver('C:/Repo/sub/file.md')
-  assert.strictEqual(result, 'hello')
+test('exists returns false for missing file', () => {
+  const resolver = new FileResolver(repoDir)
+  assert.ok(!resolver.exists(path.join(repoDir, 'spec', 'nonexistent.md')))
 })
 
-test('falls back to filesystem when not in cache', () => {
-  const cache = new Map()
-  const resolver = makeCachedFileResolver(cache)
-  // Read a file we know exists
-  const thisFile = __filename
-  const result = resolver(thisFile)
-  assert.ok(Buffer.isBuffer(result) || typeof result === 'string')
-  assert.ok(result.length > 0)
+test('readFileOrNull returns null for missing file', () => {
+  const resolver = new FileResolver(repoDir)
+  assert.strictEqual(resolver.readFileOrNull(path.join(repoDir, 'spec', 'nonexistent.md'), 'utf8'), null)
 })
 
-// ── makeCachedTextReader ──
-
-console.log('\nmakeCachedTextReader')
-
-test('returns string content on exact match', () => {
-  const cache = new Map()
-  cache.set('/repo/file.md', '# Hello')
-  const reader = makeCachedTextReader(cache)
-  assert.strictEqual(reader('/repo/file.md'), '# Hello')
+test('getAbsPath returns path unchanged in local mode', () => {
+  const resolver = new FileResolver(repoDir)
+  const p = path.join(repoDir, 'spec', '01.md')
+  assert.strictEqual(resolver.getAbsPath(p), p)
 })
 
-test('converts Buffer to string', () => {
-  const cache = new Map()
-  cache.set('/repo/file.md', Buffer.from('buffer content'))
-  const reader = makeCachedTextReader(cache)
-  assert.strictEqual(reader('/repo/file.md'), 'buffer content')
+test('createLocalResolver sets specRoot correctly', () => {
+  const specRoot = path.join(repoDir, 'spec')
+  const resolver = createLocalResolver(repoDir, specRoot)
+  assert.strictEqual(resolver.specRoot, specRoot)
+  assert.strictEqual(resolver.cacheDir, path.join(repoDir, 'cached'))
 })
 
-test('returns string on case-insensitive match', () => {
-  const cache = new Map()
-  cache.set('C:\\Repo\\File.md', 'upper case path')
-  const reader = makeCachedTextReader(cache)
-  assert.strictEqual(reader('c:\\repo\\file.md'), 'upper case path')
+console.log('\nFileResolver — git commit mode')
+
+test('createCommitResolver unpacks commit and reads file', () => {
+  const specRoot = path.join(repoDir, 'spec')
+  const resolver = createCommitResolver(repoDir, specRoot, commitHash)
+  const result = resolver.readFile(path.join(repoDir, 'spec', '01.md'), 'utf8')
+  assert.ok(result.includes('# Section 1'))
 })
 
-test('converts Buffer on case-insensitive match', () => {
-  const cache = new Map()
-  cache.set('C:\\Repo\\File.md', Buffer.from('buf'))
-  const reader = makeCachedTextReader(cache)
-  assert.strictEqual(reader('c:\\repo\\file.md'), 'buf')
+test('createCommitResolver reads binary file as Buffer', () => {
+  const specRoot = path.join(repoDir, 'spec')
+  const resolver = createCommitResolver(repoDir, specRoot, commitHash)
+  const result = resolver.readFile(path.join(repoDir, 'spec', 'image.png'))
+  assert.ok(Buffer.isBuffer(result))
 })
 
-test('falls back to filesystem when not in cache', () => {
-  const cache = new Map()
-  const reader = makeCachedTextReader(cache)
-  const result = reader(__filename)
-  assert.strictEqual(typeof result, 'string')
-  assert.ok(result.includes('makeCachedTextReader'))
+test('createCommitResolver exists returns true for committed file', () => {
+  const specRoot = path.join(repoDir, 'spec')
+  const resolver = createCommitResolver(repoDir, specRoot, commitHash)
+  assert.ok(resolver.exists(path.join(repoDir, 'spec', '01.md')))
 })
+
+test('createCommitResolver exists returns false for non-committed file', () => {
+  const specRoot = path.join(repoDir, 'spec')
+  const resolver = createCommitResolver(repoDir, specRoot, commitHash)
+  assert.ok(!resolver.exists(path.join(repoDir, 'spec', 'nonexistent.md')))
+})
+
+test('createCommitResolver readFileOrNull returns null for missing file', () => {
+  const specRoot = path.join(repoDir, 'spec')
+  const resolver = createCommitResolver(repoDir, specRoot, commitHash)
+  assert.strictEqual(resolver.readFileOrNull(path.join(repoDir, 'spec', 'nonexistent.md'), 'utf8'), null)
+})
+
+test('createCommitResolver cacheDir is inside temp dir', () => {
+  const specRoot = path.join(repoDir, 'spec')
+  const resolver = createCommitResolver(repoDir, specRoot, commitHash)
+  assert.ok(resolver.cacheDir.startsWith(os.tmpdir()))
+  assert.ok(resolver.cacheDir.includes(commitHash))
+})
+
+test('createCommitResolver reuses existing unpack (persistent cache)', () => {
+  const specRoot = path.join(repoDir, 'spec')
+  const r1 = createCommitResolver(repoDir, specRoot, commitHash)
+  const r2 = createCommitResolver(repoDir, specRoot, commitHash)
+  assert.strictEqual(r1.rootDir, r2.rootDir)
+  // Both should read the same content
+  const c1 = r1.readFile(path.join(repoDir, 'spec', '01.md'), 'utf8')
+  const c2 = r2.readFile(path.join(repoDir, 'spec', '01.md'), 'utf8')
+  assert.strictEqual(c1, c2)
+})
+
+// Clean up commit resolver temp dirs
+try {
+  const specRoot = path.join(repoDir, 'spec')
+  const resolver = createCommitResolver(repoDir, specRoot, commitHash)
+  fs.rmSync(resolver.rootDir, { recursive: true, force: true })
+} catch (e) { /* ignore */ }
 
 // ── Cleanup ──
 
