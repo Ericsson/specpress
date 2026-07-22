@@ -1,3 +1,4 @@
+const { test, describe } = require('node:test')
 const assert = require('assert')
 const fs = require('fs')
 const path = require('path')
@@ -6,21 +7,6 @@ const JSZip = require('jszip')
 const { Document, Packer, SectionType } = require('docx')
 const { renderCRCoverPageDOCX } = require('../../../lib/md2docx/crCoverPageRenderer')
 const { docxStyles } = require('../../../lib/md2docx/styles/docxStyles')
-
-let passed = 0
-let failed = 0
-
-async function test(name, fn) {
-  try {
-    await fn()
-    console.log(`  ✓ ${name}`)
-    passed++
-  } catch (e) {
-    console.log(`  ✗ ${name}`)
-    console.log(`    ${e.message}`)
-    failed++
-  }
-}
 
 const sampleCR = {
   'TDoc Number': 'R2-2600067',
@@ -113,10 +99,9 @@ function findGridSpans(xml) {
   return spans
 }
 
-async function run() {
-  console.log('CR cover page DOCX - shading')
+describe('CR cover page DOCX - shading', () => {
 
-  await test('all shading uses type="clear" (not "solid")', async () => {
+  test('all shading uses type="clear" (not "solid")', async () => {
     const { xml } = await crToDocXml()
     const shadings = findShadings(xml)
     assert.ok(shadings.length > 0, 'should have shading elements')
@@ -125,68 +110,70 @@ async function run() {
       `Found ${solidOnes.length} cells with val="solid" — should all be "clear"`)
   })
 
-  await test('yellow cells use fill="FFFFCA"', async () => {
+  test('yellow cells use fill="FFFFCA"', async () => {
     const { xml } = await crToDocXml()
     const shadings = findShadings(xml)
     const yellow = shadings.filter(s => s.fill === 'FFFFCA')
     assert.ok(yellow.length >= 5, `Expected >=5 yellow cells, got ${yellow.length}`)
   })
 
-  await test('light yellow cells use fill="FFFFDD"', async () => {
+  test('light yellow cells use fill="FFFFDD"', async () => {
     const { xml } = await crToDocXml()
     const shadings = findShadings(xml)
     const lightYellow = shadings.filter(s => s.fill === 'FFFFDD')
     assert.ok(lightYellow.length >= 1, 'should have at least one light yellow cell')
   })
 
-  console.log('\nCR cover page DOCX - table structure')
+})
+describe('CR cover page DOCX - table structure', () => {
 
-  await test('produces exactly 4 separate tables (header, affected, content1, content2)', async () => {
+  test('produces exactly 4 separate tables (header, affected, content1, content2)', async () => {
     const { xml } = await crToDocXml()
     const count = countTables(xml)
     assert.strictEqual(count, 4, `Expected 4 tables, got ${count}`)
   })
 
-  await test('header table has columnSpan=9 for CHANGE REQUEST row', async () => {
+  test('header table has columnSpan=9 for CHANGE REQUEST row', async () => {
     const { xml } = await crToDocXml()
     const spans = findGridSpans(xml)
     assert.ok(spans.includes(9), 'should have gridSpan=9 for the title row')
   })
 
-  console.log('\nCR cover page DOCX - content')
+})
+describe('CR cover page DOCX - content', () => {
 
-  await test('TDoc number appears in output', async () => {
+  test('TDoc number appears in output', async () => {
     const { xml } = await crToDocXml()
     const texts = findTexts(xml)
     assert.ok(texts.some(t => t.includes('R2-2600067')))
   })
 
-  await test('CR number is formatted as 4 digits', async () => {
+  test('CR number is formatted as 4 digits', async () => {
     const { xml } = await crToDocXml()
     const texts = findTexts(xml)
     assert.ok(texts.some(t => t.includes('0001')))
   })
 
-  await test('Title appears in content table', async () => {
+  test('Title appears in content table', async () => {
     const { xml } = await crToDocXml()
     const texts = findTexts(xml)
     assert.ok(texts.some(t => t.includes('Support for CB-PUSCH')))
   })
 
-  await test('Category value appears', async () => {
+  test('Category value appears', async () => {
     const { xml } = await crToDocXml()
     const texts = findTexts(xml)
     assert.ok(texts.some(t => t === 'B'))
   })
 
-  await test('Release uses explicit field value', async () => {
+  test('Release uses explicit field value', async () => {
     const { xml } = await crToDocXml()
     const texts = findTexts(xml)
     assert.ok(texts.some(t => t === 'Rel-19'), 'should use explicit Release field with Rel- prefix')
     assert.ok(!texts.some(t => t === 'Rel-1'), 'should not derive from version')
   })
 
-  await test('Release falls back to version-derived when field absent', async () => {
+  test('Release falls back to version-derived when field absent', async () => {
     const data = { ...sampleCR }
     delete data.Release
     const { xml } = await crToDocXml(data)
@@ -194,49 +181,51 @@ async function run() {
     assert.ok(texts.some(t => t.includes('Rel-1')), 'should derive Rel-1 from version 1.0.0')
   })
 
-  console.log('\nCR cover page DOCX - other specs affected')
+})
+describe('CR cover page DOCX - other specs affected', () => {
 
-  await test('"Other specs affected" label appears', async () => {
+  test('"Other specs affected" label appears', async () => {
     const { xml } = await crToDocXml()
     const texts = findTexts(xml)
     assert.ok(texts.some(t => t.includes('Other specs affected')),
       'should contain "Other specs affected" label')
   })
 
-  await test('"Other core specifications" label appears', async () => {
+  test('"Other core specifications" label appears', async () => {
     const { xml } = await crToDocXml()
     const texts = findTexts(xml)
     assert.ok(texts.some(t => t.includes('Other core specifications')))
   })
 
-  await test('"Test specifications" label appears', async () => {
+  test('"Test specifications" label appears', async () => {
     const { xml } = await crToDocXml()
     const texts = findTexts(xml)
     assert.ok(texts.some(t => t.includes('Test specifications')))
   })
 
-  await test('"O&M Specifications" label appears', async () => {
+  test('"O&M Specifications" label appears', async () => {
     const { xml } = await crToDocXml()
     const texts = findTexts(xml)
     assert.ok(texts.some(t => t.includes('O&M Specifications')))
   })
 
-  await test('other core spec value appears when provided', async () => {
+  test('other core spec value appears when provided', async () => {
     const { xml } = await crToDocXml()
     const texts = findTexts(xml)
     assert.ok(texts.some(t => t.includes('TS 38.331 CR 1234')))
   })
 
-  await test('Y/N column headers appear', async () => {
+  test('Y/N column headers appear', async () => {
     const { xml } = await crToDocXml()
     const texts = findTexts(xml)
     assert.ok(texts.some(t => t === 'Y'), 'should have Y header')
     assert.ok(texts.some(t => t === 'N'), 'should have N header')
   })
 
-  console.log('\nCR cover page DOCX - table separation')
+})
+describe('CR cover page DOCX - table separation', () => {
 
-  await test('content between tables (separator paragraphs exist)', async () => {
+  test('content between tables (separator paragraphs exist)', async () => {
     const { xml } = await crToDocXml()
     const tableCloseCount = (xml.match(/<\/w:tbl>/g) || []).length
     assert.strictEqual(tableCloseCount, 4, 'should have 4 table close tags')
@@ -245,16 +234,17 @@ async function run() {
     assert.ok(noAdjacentTables, 'tables should not be directly adjacent')
   })
 
-  console.log('\nCR cover page DOCX - affected checkboxes')
+})
+describe('CR cover page DOCX - affected checkboxes', () => {
 
-  await test('ME checkbox shows X when true', async () => {
+  test('ME checkbox shows X when true', async () => {
     const { xml } = await crToDocXml()
     const texts = findTexts(xml)
     // ME is true in sample data, should have X
     assert.ok(texts.includes('X'), 'should have X for checked boxes')
   })
 
-  await test('UICC checkbox is empty when false', async () => {
+  test('UICC checkbox is empty when false', async () => {
     const { xml } = await crToDocXml()
     // The affected table should have empty cells for unchecked items
     // We verify by checking that not all checkbox cells have X
@@ -264,28 +254,30 @@ async function run() {
     assert.ok(xCount >= 2, 'should have at least 2 X marks')
   })
 
-  console.log('\nCR cover page DOCX - vertical alignment')
+})
+describe('CR cover page DOCX - vertical alignment', () => {
 
-  await test('cells have vertical alignment center', async () => {
+  test('cells have vertical alignment center', async () => {
     const { xml } = await crToDocXml()
     const vAlignCount = (xml.match(/<w:vAlign w:val="center"\/>/g) || []).length
     assert.ok(vAlignCount >= 10, `Expected >=10 vertically centered cells, got ${vAlignCount}`)
   })
 
-  console.log('\nCR cover page DOCX - separator style')
+})
+describe('CR cover page DOCX - separator style', () => {
 
-  await test('CRCoverNarrow style is used for separators', async () => {
+  test('CRCoverNarrow style is used for separators', async () => {
     const { xml } = await crToDocXml()
     assert.ok(xml.includes('CRCoverNarrow'), 'should use CRCoverNarrow style')
   })
 
-  await test('CRCoverNarrow style is defined in styles.xml', async () => {
+  test('CRCoverNarrow style is defined in styles.xml', async () => {
     const { zip } = await crToDocXml()
     const stylesXml = await zip.file('word/styles.xml').async('string')
     assert.ok(stylesXml.includes('CRCoverNarrow'), 'styles.xml should define CRCoverNarrow')
   })
 
-  await test('CRCoverPage style has zero spacing', async () => {
+  test('CRCoverPage style has zero spacing', async () => {
     const { zip } = await crToDocXml()
     const stylesXml = await zip.file('word/styles.xml').async('string')
     // Find the CRCoverPage style definition and verify spacing
@@ -296,15 +288,16 @@ async function run() {
     assert.ok(!hasLargeAfter, 'CRCoverPage should not have large after spacing')
   })
 
-  await test('cells have horizontal margins (w:tcMar)', async () => {
+  test('cells have horizontal margins (w:tcMar)', async () => {
     const { xml } = await crToDocXml()
     const marginCount = (xml.match(/<w:tcMar>/g) || []).length
     assert.ok(marginCount >= 10, `Expected >=10 cells with margins, got ${marginCount}`)
   })
 
-  console.log('\nCR cover page DOCX - packCRCoverPageDocx')
+})
+describe('CR cover page DOCX - packCRCoverPageDocx', () => {
 
-  await test('packCRCoverPageDocx produces valid DOCX with tables and content', async () => {
+  test('packCRCoverPageDocx produces valid DOCX with tables and content', async () => {
     const { packCRCoverPageDocx } = require('../../../lib/md2docx/crCoverPageRenderer')
     const buffer = await packCRCoverPageDocx(sampleCR)
     assert.ok(Buffer.isBuffer(buffer), 'should return a Buffer')
@@ -320,7 +313,7 @@ async function run() {
     assert.ok(texts.some(t => t.includes('Support for CB-PUSCH')), 'should contain title')
   })
 
-  await test('packCRCoverPageDocx output has CRCoverPage style defined', async () => {
+  test('packCRCoverPageDocx output has CRCoverPage style defined', async () => {
     const { packCRCoverPageDocx } = require('../../../lib/md2docx/crCoverPageRenderer')
     const buffer = await packCRCoverPageDocx(sampleCR)
     const zip = await JSZip.loadAsync(buffer)
@@ -329,7 +322,7 @@ async function run() {
     assert.ok(stylesXml.includes('CRCoverNarrow'), 'should define CRCoverNarrow style')
   })
 
-  await test('exportCRCoverPageDocx writes valid DOCX from a CR JSON file', async () => {
+  test('exportCRCoverPageDocx writes valid DOCX from a CR JSON file', async () => {
     const { exportCRCoverPageDocx } = require('../../../lib/md2docx/crCoverPageRenderer')
     const tmp = path.join(os.tmpdir(), `cr_export_test_${Date.now()}`)
     fs.mkdirSync(tmp, { recursive: true })
@@ -349,7 +342,7 @@ async function run() {
     }
   })
 
-  await test('exportCRCoverPageDocx throws on invalid CR JSON', async () => {
+  test('exportCRCoverPageDocx throws on invalid CR JSON', async () => {
     const { exportCRCoverPageDocx } = require('../../../lib/md2docx/crCoverPageRenderer')
     const tmp = path.join(os.tmpdir(), `cr_export_invalid_${Date.now()}`)
     fs.mkdirSync(tmp, { recursive: true })
@@ -366,7 +359,8 @@ async function run() {
     }
   })
 
-  console.log('\nCR cover page - all fields present in output')
+})
+describe('CR cover page - all fields present in output', () => {
 
   const fullCR = {
     'TDoc Number': 'R2-2600067',
@@ -398,7 +392,7 @@ async function run() {
     'Other comments': 'Reviewed in RAN2#120.'
   }
 
-  await test('HTML: all CR fields appear in rendered output', () => {
+  test('HTML: all CR fields appear in rendered output', () => {
     const { renderCRCoverPageHTML } = require('../../../lib/md2html/crCoverPageRenderer')
     const html = renderCRCoverPageHTML(fullCR)
     // Every user-visible value must appear
@@ -440,7 +434,7 @@ async function run() {
     assert.strictEqual(xMarks, 4, `Expected 4 X marks in affected row, got ${xMarks}`)
   })
 
-  await test('DOCX: all CR fields appear in rendered output', async () => {
+  test('DOCX: all CR fields appear in rendered output', async () => {
     const { xml } = await crToDocXml(fullCR)
     const texts = findTexts(xml)
     const allText = texts.join(' ')
@@ -483,9 +477,10 @@ async function run() {
     assert.strictEqual(xCount, 4, `Expected 4 X marks in affected table, got ${xCount}`)
   })
 
-  console.log('\nCR cover page DOCX - affected "Radio Access Network" / "Core Network" keys')
+})
+describe('CR cover page DOCX - affected "Radio Access Network" / "Core Network" keys', () => {
 
-  await test('DOCX: Affected."Radio Access Network" = true shows X', async () => {
+  test('DOCX: Affected."Radio Access Network" = true shows X', async () => {
     const data = { ...sampleCR, Affected: { UICC: false, ME: false, 'Radio Access Network': true, 'Core Network': false } }
     const { xml } = await crToDocXml(data)
     // Extract the affected table (2nd table)
@@ -496,7 +491,7 @@ async function run() {
     assert.ok(texts.includes('X'), 'RAN checkbox should show X')
   })
 
-  await test('DOCX: Affected."Core Network" = true shows X', async () => {
+  test('DOCX: Affected."Core Network" = true shows X', async () => {
     const data = { ...sampleCR, Affected: { UICC: false, ME: false, 'Radio Access Network': false, 'Core Network': true } }
     const { xml } = await crToDocXml(data)
     const tables = xml.split('<w:tbl>')
@@ -505,7 +500,7 @@ async function run() {
     assert.ok(texts.includes('X'), 'CN checkbox should show X')
   })
 
-  await test('DOCX: Affected.RAN shorthand also works', async () => {
+  test('DOCX: Affected.RAN shorthand also works', async () => {
     const data = { ...sampleCR, Affected: { UICC: false, ME: false, RAN: true, CN: false } }
     const { xml } = await crToDocXml(data)
     const tables = xml.split('<w:tbl>')
@@ -514,7 +509,7 @@ async function run() {
     assert.ok(texts.includes('X'), 'RAN checkbox should show X via shorthand')
   })
 
-  await test('DOCX: Affected.CN shorthand also works', async () => {
+  test('DOCX: Affected.CN shorthand also works', async () => {
     const data = { ...sampleCR, Affected: { UICC: false, ME: false, RAN: false, CN: true } }
     const { xml } = await crToDocXml(data)
     const tables = xml.split('<w:tbl>')
@@ -523,9 +518,10 @@ async function run() {
     assert.ok(texts.includes('X'), 'CN checkbox should show X via shorthand')
   })
 
-  console.log('\nCR cover page HTML - affected "Radio Access Network" / "Core Network" keys')
+})
+describe('CR cover page HTML - affected "Radio Access Network" / "Core Network" keys', () => {
 
-  await test('HTML: Affected."Radio Access Network" = true shows X', () => {
+  test('HTML: Affected."Radio Access Network" = true shows X', () => {
     const { renderCRCoverPageHTML } = require('../../../lib/md2html/crCoverPageRenderer')
     const data = { ...sampleCR, Affected: { UICC: false, ME: false, 'Radio Access Network': true, 'Core Network': false } }
     const html = renderCRCoverPageHTML(data)
@@ -538,7 +534,7 @@ async function run() {
     assert.ok(ranCellMatch && ranCellMatch[1].trim() === 'X', 'RAN checkbox should show X')
   })
 
-  await test('HTML: Affected."Core Network" = true shows X', () => {
+  test('HTML: Affected."Core Network" = true shows X', () => {
     const { renderCRCoverPageHTML } = require('../../../lib/md2html/crCoverPageRenderer')
     const data = { ...sampleCR, Affected: { UICC: false, ME: false, 'Radio Access Network': false, 'Core Network': true } }
     const html = renderCRCoverPageHTML(data)
@@ -548,7 +544,7 @@ async function run() {
     assert.ok(cnCellMatch && cnCellMatch[1].trim() === 'X', 'CN checkbox should show X')
   })
 
-  await test('HTML: Affected.RAN shorthand also works', () => {
+  test('HTML: Affected.RAN shorthand also works', () => {
     const { renderCRCoverPageHTML } = require('../../../lib/md2html/crCoverPageRenderer')
     const data = { ...sampleCR, Affected: { UICC: false, ME: false, RAN: true, CN: false } }
     const html = renderCRCoverPageHTML(data)
@@ -558,7 +554,7 @@ async function run() {
     assert.ok(ranCellMatch && ranCellMatch[1].trim() === 'X', 'RAN checkbox should show X via shorthand')
   })
 
-  await test('HTML: Affected.CN shorthand also works', () => {
+  test('HTML: Affected.CN shorthand also works', () => {
     const { renderCRCoverPageHTML } = require('../../../lib/md2html/crCoverPageRenderer')
     const data = { ...sampleCR, Affected: { UICC: false, ME: false, RAN: false, CN: true } }
     const html = renderCRCoverPageHTML(data)
@@ -568,7 +564,7 @@ async function run() {
     assert.ok(cnCellMatch && cnCellMatch[1].trim() === 'X', 'CN checkbox should show X via shorthand')
   })
 
-  await test('HTML: all affected false shows no X in affected row', () => {
+  test('HTML: all affected false shows no X in affected row', () => {
     const { renderCRCoverPageHTML } = require('../../../lib/md2html/crCoverPageRenderer')
     const data = { ...sampleCR, Affected: { UICC: false, ME: false, 'Radio Access Network': false, 'Core Network': false } }
     const html = renderCRCoverPageHTML(data)
@@ -582,9 +578,10 @@ async function run() {
     assert.strictEqual(xMarks.length, 0, 'no X marks when all affected are false')
   })
 
-  console.log('\nCR cover page - other specs multi-line rendering')
+})
+describe('CR cover page - other specs multi-line rendering', () => {
 
-  await test('HTML: multiple other core specs appear on separate lines', () => {
+  test('HTML: multiple other core specs appear on separate lines', () => {
     const { renderCRCoverPageHTML } = require('../../../lib/md2html/crCoverPageRenderer')
     const data = { ...sampleCR, 'Other specs affected': {
       'Other core specifications': ['38.321, CR0238r1', '36.321, CR2384'],
@@ -598,7 +595,7 @@ async function run() {
     assert.ok(!html.includes('32.422, CR0012<br>'), 'single entry should not have trailing <br>')
   })
 
-  await test('DOCX: multiple other core specs appear on separate lines', async () => {
+  test('DOCX: multiple other core specs appear on separate lines', async () => {
     const data = { ...sampleCR, 'Other specs affected': {
       'Other core specifications': ['38.321, CR0238r1', '36.321, CR2384'],
       'Test specifications': ['38.523-1, CR0789'],
@@ -617,7 +614,7 @@ async function run() {
     assert.ok(between.includes('<w:br'), 'should have line break between entries in DOCX')
   })
 
-  await test('HTML: single entry in other specs has no <br>', () => {
+  test('HTML: single entry in other specs has no <br>', () => {
     const { renderCRCoverPageHTML } = require('../../../lib/md2html/crCoverPageRenderer')
     const data = { ...sampleCR, 'Other specs affected': {
       'Other core specifications': ['TS 38.331 CR 1234'],
@@ -629,7 +626,7 @@ async function run() {
     assert.ok(!html.includes('TS 38.331 CR 1234<br>'), 'single entry should not have <br> after it')
   })
 
-  await test('DOCX: empty other specs shows placeholder text', async () => {
+  test('DOCX: empty other specs shows placeholder text', async () => {
     const data = { ...sampleCR, 'Other specs affected': {
       'Other core specifications': [],
       'Test specifications': [],
@@ -641,9 +638,10 @@ async function run() {
     assert.ok(placeholders.length >= 3, `Expected >=3 placeholder texts, got ${placeholders.length}`)
   })
 
-  console.log('\n{ChangeHistory} placeholder - HTML')
+})
+describe('{ChangeHistory} placeholder - HTML', () => {
 
-  await test('HTML: {ChangeHistory} renders table with CR data', async () => {
+  test('HTML: {ChangeHistory} renders table with CR data', async () => {
     const { Md2Html } = require('../../../lib/md2html/md2html')
     const tmp = path.join(os.tmpdir(), `ch_html_${Date.now()}`)
     const histDir = path.join(tmp, 'history')
@@ -665,7 +663,7 @@ async function run() {
     }
   })
 
-  await test('HTML: {ChangeHistory} renders empty when no CRs exist', async () => {
+  test('HTML: {ChangeHistory} renders empty when no CRs exist', async () => {
     const { Md2Html } = require('../../../lib/md2html/md2html')
     const tmp = path.join(os.tmpdir(), `ch_html_empty_${Date.now()}`)
     fs.mkdirSync(path.join(tmp, 'history'), { recursive: true })
@@ -679,7 +677,7 @@ async function run() {
     }
   })
 
-  await test('HTML: table caption before {ChangeHistory} gets table-caption class', async () => {
+  test('HTML: table caption before {ChangeHistory} gets table-caption class', async () => {
     const { Md2Html } = require('../../../lib/md2html/md2html')
     const tmp = path.join(os.tmpdir(), `ch_html_cap_${Date.now()}`)
     const histDir = path.join(tmp, 'history')
@@ -698,7 +696,7 @@ async function run() {
     }
   })
 
-  await test('HTML: {ChangeHistory} without specRootPath renders empty', async () => {
+  test('HTML: {ChangeHistory} without specRootPath renders empty', async () => {
     const { Md2Html } = require('../../../lib/md2html/md2html')
     const renderer = new Md2Html()
     const html = renderer.renderBody('{ChangeHistory}\n', false)
@@ -706,9 +704,10 @@ async function run() {
     assert.ok(!html.includes('{ChangeHistory}'), 'placeholder should be consumed')
   })
 
-  console.log('\n{ChangeHistory} placeholder - DOCX')
+})
+describe('{ChangeHistory} placeholder - DOCX', () => {
 
-  await test('DOCX: {ChangeHistory} renders table with CR data', async () => {
+  test('DOCX: {ChangeHistory} renders table with CR data', async () => {
     const tmp = path.join(os.tmpdir(), `ch_docx_${Date.now()}`)
     const histDir = path.join(tmp, 'history')
     fs.mkdirSync(histDir, { recursive: true })
@@ -736,7 +735,7 @@ async function run() {
     }
   })
 
-  await test('DOCX: {ChangeHistory} renders empty when no CRs exist', async () => {
+  test('DOCX: {ChangeHistory} renders empty when no CRs exist', async () => {
     const tmp = path.join(os.tmpdir(), `ch_docx_empty_${Date.now()}`)
     fs.mkdirSync(path.join(tmp, 'history'), { recursive: true })
     const mdFile = path.join(tmp, 'test.md')
@@ -755,7 +754,7 @@ async function run() {
     }
   })
 
-  await test('DOCX: table caption before {ChangeHistory} gets TH style', async () => {
+  test('DOCX: table caption before {ChangeHistory} gets TH style', async () => {
     const tmp = path.join(os.tmpdir(), `ch_docx_cap_${Date.now()}`)
     const histDir = path.join(tmp, 'history')
     fs.mkdirSync(histDir, { recursive: true })
@@ -784,7 +783,7 @@ async function run() {
     }
   })
 
-  await test('DOCX: {ChangeHistory} without specRootPath produces no table', async () => {
+  test('DOCX: {ChangeHistory} without specRootPath produces no table', async () => {
     const tmp = path.join(os.tmpdir(), `ch_docx_noroot_${Date.now()}`)
     fs.mkdirSync(tmp, { recursive: true })
     const mdFile = path.join(tmp, 'test.md')
@@ -803,9 +802,10 @@ async function run() {
     }
   })
 
-  console.log('\nCR history annex (deprecated functions)')
+})
+describe('CR history annex (deprecated functions)', () => {
 
-  await test('renderCRHistoryDOCX returns heading + table for approved CRs', async () => {
+  test('renderCRHistoryDOCX returns heading + table for approved CRs', async () => {
     const { renderCRHistoryDOCX, loadApprovedCRs } = require('../../../lib/md2docx/crHistoryRenderer')
     // Use a temp directory with test CR files
     const tmp = path.join(os.tmpdir(), `cr_history_test_${Date.now()}`)
@@ -827,7 +827,7 @@ async function run() {
     }
   })
 
-  await test('renderCRHistoryDOCX returns empty for no approved CRs', async () => {
+  test('renderCRHistoryDOCX returns empty for no approved CRs', async () => {
     const { renderCRHistoryDOCX } = require('../../../lib/md2docx/crHistoryRenderer')
     const tmp = path.join(os.tmpdir(), `cr_history_empty_${Date.now()}`)
     fs.mkdirSync(path.join(tmp, 'history'), { recursive: true })
@@ -838,7 +838,7 @@ async function run() {
     }
   })
 
-  await test('renderCRHistoryHTML contains CR data in table', async () => {
+  test('renderCRHistoryHTML contains CR data in table', async () => {
     const { renderCRHistoryHTML } = require('../../../lib/md2docx/crHistoryRenderer')
     const tmp = path.join(os.tmpdir(), `cr_history_html_${Date.now()}`)
     const histDir = path.join(tmp, 'history')
@@ -859,12 +859,12 @@ async function run() {
     }
   })
 
-  await test('renderCRHistoryHTML returns empty string when no CRs', async () => {
+  test('renderCRHistoryHTML returns empty string when no CRs', async () => {
     const { renderCRHistoryHTML } = require('../../../lib/md2docx/crHistoryRenderer')
     assert.strictEqual(renderCRHistoryHTML('/non/existent'), '')
   })
 
-  await test('CR history sorts by CR number', async () => {
+  test('CR history sorts by CR number', async () => {
     const { renderCRHistoryHTML } = require('../../../lib/md2docx/crHistoryRenderer')
     const tmp = path.join(os.tmpdir(), `cr_history_sort_${Date.now()}`)
     const histDir = path.join(tmp, 'history')
@@ -883,8 +883,5 @@ async function run() {
     }
   })
 
-  console.log(`\n${passed} passed, ${failed} failed`)
-  process.exit(failed > 0 ? 1 : 0)
-}
 
-run()
+})

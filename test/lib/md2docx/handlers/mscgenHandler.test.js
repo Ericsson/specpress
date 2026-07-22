@@ -1,3 +1,4 @@
+const { test, describe } = require('node:test')
 const assert = require('assert')
 const fs = require('fs')
 const path = require('path')
@@ -8,149 +9,136 @@ const { findMscgen, renderMscgenBatch } = require('../../../../lib/common/mscgen
 const { renderMscgenCached } = require('../../../../lib/common/diagramRenderers')
 const { getSvgDimensions, cacheKey: mscgenCacheKey, svgCacheDir } = require('../../../../lib/common/diagramCache')
 
-let passed = 0
-let failed = 0
+describe('parseMscgenPreamble', () => {
 
-async function test(name, fn) {
-  try {
-    await fn()
-    console.log(`  ✓ ${name}`)
-    passed++
-  } catch (e) {
-    console.log(`  ✗ ${name}`)
-    console.log(`    ${e.message}`)
-    failed++
-  }
-}
-
-async function run() {
-  console.log('parseMscgenPreamble')
-
-  await test('returns preamble array from valid JSON', () => {
+  test('returns preamble array from valid JSON', () => {
     const config = JSON.stringify({ preamble: ['hscale="auto";', 'defstyle ac [text.italic=yes];'] })
     const result = parseMscgenPreamble(config)
     assert.deepStrictEqual(result, ['hscale="auto";', 'defstyle ac [text.italic=yes];'])
   })
 
-  await test('returns empty array for null', () => {
+  test('returns empty array for null', () => {
     assert.deepStrictEqual(parseMscgenPreamble(null), [])
   })
 
-  await test('returns empty array for empty string', () => {
+  test('returns empty array for empty string', () => {
     assert.deepStrictEqual(parseMscgenPreamble(''), [])
   })
 
-  await test('returns empty array for invalid JSON', () => {
+  test('returns empty array for invalid JSON', () => {
     assert.deepStrictEqual(parseMscgenPreamble('not json'), [])
   })
 
-  await test('returns empty array when preamble is not an array', () => {
+  test('returns empty array when preamble is not an array', () => {
     assert.deepStrictEqual(parseMscgenPreamble('{"preamble": "string"}'), [])
   })
 
-  await test('returns empty array when preamble key is missing', () => {
+  test('returns empty array when preamble key is missing', () => {
     assert.deepStrictEqual(parseMscgenPreamble('{"other": []}'), [])
   })
 
-  console.log('\napplyMscgenPreamble')
+})
+describe('applyMscgenPreamble', () => {
 
   const preamble = ['hscale="auto";', 'defstyle ac [text.italic=yes];']
 
-  await test('prepends preamble to code without style definitions', () => {
+  test('prepends preamble to code without style definitions', () => {
     const code = 'u: UE;\nn: Network;\nu->n: msg [ac];'
     const result = applyMscgenPreamble(code, preamble)
     assert.ok(result.startsWith('hscale="auto";\ndefstyle ac'))
     assert.ok(result.endsWith(code))
   })
 
-  await test('does not prepend when code starts with hscale', () => {
+  test('does not prepend when code starts with hscale', () => {
     const code = 'hscale="auto";\nu: UE;\nn: Network;'
     const result = applyMscgenPreamble(code, preamble)
     assert.strictEqual(result, code)
   })
 
-  await test('does not prepend when code starts with defstyle', () => {
+  test('does not prepend when code starts with defstyle', () => {
     const code = 'defstyle entity [text.bold=yes];\nu: UE;'
     const result = applyMscgenPreamble(code, preamble)
     assert.strictEqual(result, code)
   })
 
-  await test('returns code unchanged for empty preamble', () => {
+  test('returns code unchanged for empty preamble', () => {
     const code = 'u: UE;\nn: Network;'
     assert.strictEqual(applyMscgenPreamble(code, []), code)
   })
 
-  await test('returns code unchanged for null preamble', () => {
+  test('returns code unchanged for null preamble', () => {
     const code = 'u: UE;\nn: Network;'
     assert.strictEqual(applyMscgenPreamble(code, null), code)
   })
 
-  console.log('\nextractMscgenType')
+})
+describe('extractMscgenType', () => {
 
-  await test('returns signalling type and unchanged code when no @type directive', () => {
+  test('returns signalling type and unchanged code when no @type directive', () => {
     const { code, type } = extractMscgenType('u: UE;\nn: Network;')
     assert.strictEqual(type, 'signalling')
     assert.strictEqual(code, 'u: UE;\nn: Network;')
   })
 
-  await test('extracts @type=block and removes the line', () => {
+  test('extracts @type=block and removes the line', () => {
     const { code, type } = extractMscgenType('@type=block\na: A;\nb: B;')
     assert.strictEqual(type, 'block')
     assert.strictEqual(code, 'a: A;\nb: B;')
   })
 
-  await test('extracts @type=graph and removes the line', () => {
+  test('extracts @type=graph and removes the line', () => {
     const { code, type } = extractMscgenType('@type=graph\na: A;\nb: B;')
     assert.strictEqual(type, 'graph')
     assert.strictEqual(code, 'a: A;\nb: B;')
   })
 
-  await test('auto-detects graph type from "graph {" syntax without @type directive', () => {
+  test('auto-detects graph type from "graph {" syntax without @type directive', () => {
     const raw = 'graph {\n    a; b;\n    a -> b;\n};'
     const { code, type } = extractMscgenType(raw)
     assert.strictEqual(type, 'graph')
     assert.strictEqual(code, raw, 'code should be unchanged for auto-detected graph')
   })
 
-  await test('auto-detects graph type when "graph" is followed by whitespace before "{"', () => {
+  test('auto-detects graph type when "graph" is followed by whitespace before "{"', () => {
     const raw = 'graph  {\n    a -> b;\n};'
     const { type } = extractMscgenType(raw)
     assert.strictEqual(type, 'graph')
   })
 
-  await test('@type=graph is still accepted explicitly and removes the line', () => {
+  test('@type=graph is still accepted explicitly and removes the line', () => {
     const { code, type } = extractMscgenType('@type=graph\na: A;\nb: B;')
     assert.strictEqual(type, 'graph')
     assert.strictEqual(code, 'a: A;\nb: B;')
   })
 
-  await test('extracts @type=signalling explicitly and removes the line', () => {
+  test('extracts @type=signalling explicitly and removes the line', () => {
     const { code, type } = extractMscgenType('@type=signalling\nu: UE;')
     assert.strictEqual(type, 'signalling')
     assert.strictEqual(code, 'u: UE;')
   })
 
-  await test('is case-insensitive for the type value', () => {
+  test('is case-insensitive for the type value', () => {
     const { type } = extractMscgenType('@type=BLOCK\na: A;')
     assert.strictEqual(type, 'block')
   })
 
-  await test('leaves unknown type values in the code unchanged', () => {
+  test('leaves unknown type values in the code unchanged', () => {
     const raw = '@type=unknown\na: A;'
     const { code, type } = extractMscgenType(raw)
     assert.strictEqual(type, 'signalling')
     assert.strictEqual(code, raw)
   })
 
-  await test('@type= directive may appear anywhere in the code', () => {
+  test('@type= directive may appear anywhere in the code', () => {
     const { code, type } = extractMscgenType('a: A;\n@type=block\nb: B;')
     assert.strictEqual(type, 'block')
     assert.strictEqual(code, 'a: A;\nb: B;')
   })
 
-  console.log('\nprepareMscgenCode')
+})
+describe('prepareMscgenCode', () => {
 
-  await test('returns signalling type and applies preamble for plain code', () => {
+  test('returns signalling type and applies preamble for plain code', () => {
     const configJson = JSON.stringify({ preamble: ['hscale="auto";'] })
     const { code, type, cacheConfig } = prepareMscgenCode('u: UE;', configJson)
     assert.strictEqual(type, 'signalling')
@@ -158,7 +146,7 @@ async function run() {
     assert.strictEqual(cacheConfig, configJson)
   })
 
-  await test('strips @type=block and folds type into cacheConfig', () => {
+  test('strips @type=block and folds type into cacheConfig', () => {
     const configJson = JSON.stringify({ preamble: [] })
     const { code, type, cacheConfig } = prepareMscgenCode('@type=block\na: A;', configJson)
     assert.strictEqual(type, 'block')
@@ -166,7 +154,7 @@ async function run() {
     assert.ok(cacheConfig.includes('\0block'))
   })
 
-  await test('auto-detects graph type from "graph {" syntax without @type directive', () => {
+  test('auto-detects graph type from "graph {" syntax without @type directive', () => {
     const raw = 'graph {\n    a -> b;\n};'
     const { code, type, cacheConfig } = prepareMscgenCode(raw, '{}')
     assert.strictEqual(type, 'graph')
@@ -174,19 +162,19 @@ async function run() {
     assert.ok(cacheConfig.includes('\0graph'))
   })
 
-  await test('signalling type does not modify cacheConfig', () => {
+  test('signalling type does not modify cacheConfig', () => {
     const configJson = '{}'
     const { cacheConfig } = prepareMscgenCode('u: UE;', configJson)
     assert.strictEqual(cacheConfig, configJson)
   })
 
-  await test('block and graph produce different cacheConfigs from each other', () => {
+  test('block and graph produce different cacheConfigs from each other', () => {
     const { cacheConfig: blockConfig } = prepareMscgenCode('@type=block\na: A;', '{}')
     const { cacheConfig: graphConfig } = prepareMscgenCode('@type=graph\na: A;', '{}')
     assert.notStrictEqual(blockConfig, graphConfig)
   })
 
-  await test('block type produces different cache key than signalling for same code', () => {
+  test('block type produces different cache key than signalling for same code', () => {
     const { cacheKey } = require('../../../../lib/common/diagramCache')
     const raw = 'a: A;\nb: B;'
     const { code: codeS, cacheConfig: cfgS } = prepareMscgenCode(raw, '{}')
@@ -195,7 +183,7 @@ async function run() {
     assert.notStrictEqual(cacheKey(codeS, cfgS), cacheKey(codeB, cfgB), 'cache keys must differ')
   })
 
-  await test('graph type produces different cache key than signalling and block for same code', () => {
+  test('graph type produces different cache key than signalling and block for same code', () => {
     const { cacheKey } = require('../../../../lib/common/diagramCache')
     const raw = 'a: A;\nb: B;'
     const graphRaw = 'graph {\n    a -> b;\n};'
@@ -206,9 +194,10 @@ async function run() {
     assert.notStrictEqual(cacheKey(codeB, cfgB), cacheKey(codeG, cfgG), 'block vs graph keys must differ')
   })
 
-  console.log('\nloadMscgenConfig')
+})
+describe('loadMscgenConfig', () => {
 
-  await test('loads the built-in default config', () => {
+  test('loads the built-in default config', () => {
     const config = loadMscgenConfig(null)
     assert.ok(config !== null)
     const parsed = JSON.parse(config)
@@ -216,7 +205,7 @@ async function run() {
     assert.ok(parsed.preamble.length > 0)
   })
 
-  await test('loads a custom config file', () => {
+  test('loads a custom config file', () => {
     const tempFile = path.join(os.tmpdir(), `mscgen-test-config-${Date.now()}.json`)
     fs.writeFileSync(tempFile, JSON.stringify({ preamble: ['custom;'] }))
     try {
@@ -228,94 +217,100 @@ async function run() {
     }
   })
 
-  await test('falls back to default when custom file does not exist', () => {
+  test('falls back to default when custom file does not exist', () => {
     const config = loadMscgenConfig('/nonexistent/path.json')
     assert.ok(config !== null)
     const parsed = JSON.parse(config)
     assert.ok(Array.isArray(parsed.preamble))
   })
 
-  console.log('\nmscgenCacheKey')
+})
+describe('mscgenCacheKey', () => {
 
-  await test('returns a 64-char hex string', () => {
+  test('returns a 64-char hex string', () => {
     const key = mscgenCacheKey('u: UE;', '{}')
     assert.ok(/^[a-f0-9]{64}$/.test(key))
   })
 
-  await test('same input produces same key', () => {
+  test('same input produces same key', () => {
     const key1 = mscgenCacheKey('u: UE;', '{}')
     const key2 = mscgenCacheKey('u: UE;', '{}')
     assert.strictEqual(key1, key2)
   })
 
-  await test('different code produces different key', () => {
+  test('different code produces different key', () => {
     const key1 = mscgenCacheKey('u: UE;', '{}')
     const key2 = mscgenCacheKey('u: Network;', '{}')
     assert.notStrictEqual(key1, key2)
   })
 
-  await test('different config produces different key', () => {
+  test('different config produces different key', () => {
     const key1 = mscgenCacheKey('u: UE;', '{"a":1}')
     const key2 = mscgenCacheKey('u: UE;', '{"a":2}')
     assert.notStrictEqual(key1, key2)
   })
 
-  console.log('\ngetSvgDimensions')
+})
+describe('getSvgDimensions', () => {
 
-  await test('extracts dimensions from viewBox', () => {
+  test('extracts dimensions from viewBox', () => {
     const svg = '<svg viewBox="0 0 400 200"></svg>'
     const { width, height } = getSvgDimensions(svg)
     assert.strictEqual(width, 400)
     assert.strictEqual(height, 200)
   })
 
-  await test('caps width at 604 and scales height proportionally', () => {
+  test('caps width at 604 and scales height proportionally', () => {
     const svg = '<svg viewBox="0 0 1208 600"></svg>'
     const { width, height } = getSvgDimensions(svg)
     assert.strictEqual(width, 604)
     assert.strictEqual(height, 300)
   })
 
-  await test('extracts from width/height attributes when no viewBox', () => {
+  test('extracts from width/height attributes when no viewBox', () => {
     const svg = '<svg width="300" height="150"></svg>'
     const { width, height } = getSvgDimensions(svg)
     assert.strictEqual(width, 300)
     assert.strictEqual(height, 150)
   })
 
-  await test('returns defaults when no dimensions found', () => {
+  test('returns defaults when no dimensions found', () => {
     const svg = '<svg></svg>'
     const { width, height } = getSvgDimensions(svg)
     assert.strictEqual(width, 604)
     assert.strictEqual(height, 400)
   })
 
-  console.log('\nsvgCacheDir')
+})
+describe('svgCacheDir', () => {
 
-  await test('returns cached/ as sibling of specRoot', () => {
+  test('returns cached/ as sibling of specRoot', () => {
     const result = svgCacheDir(path.join('/repo', 'spec'))
     assert.strictEqual(result, path.join('/repo', 'cached'))
   })
 
-  console.log('\nfindMscgen')
+})
+describe('findMscgen', () => {
 
-  await test('returns a string path or null', () => {
+  test('returns a string path or null', () => {
     const result = findMscgen()
     assert.ok(result === null || typeof result === 'string')
   })
 
-  console.log('\nrenderMscgenBatch')
+})
+describe('renderMscgenBatch', () => {
 
-  await test('returns empty array for empty input', () => {
+  test('returns empty array for empty input', () => {
     assert.deepStrictEqual(renderMscgenBatch([]), [])
   })
 
-  await test('returns empty array for null input', () => {
+  test('returns empty array for null input', () => {
     assert.deepStrictEqual(renderMscgenBatch(null), [])
   })
 
-  if (findMscgen()) {
-    await test('renders SVG and PNG for signalling diagram', () => {
+  const mscgenSkip = findMscgen() ? undefined : 'msc-gen not installed'
+
+  test('renders SVG and PNG for signalling diagram', { skip: mscgenSkip }, () => {
       const results = renderMscgenBatch([{ code: 'u: UE;\nn: Network;\n|||;\nu->n: RRCSetupRequest;\n|||;', type: 'signalling' }])
       assert.strictEqual(results.length, 1)
       assert.ok(results[0].svg !== null, 'SVG should be rendered')
@@ -326,21 +321,21 @@ async function run() {
 
     const BLOCK_CODE = '##Multiple blocks with the same content\n##multiple blocks with same content\nbox A, B [color=lgray] { X->Y; }\nbelow A\nbox C, D [color=aqua] { F->G->H,B; }\n\nrightof C.H C.F, C.G [line.width=3];'
     const GRAPH_CODE = 'graph {\n    rankdir = LR;\n    a; b;\n    c [label="C and c"];\n    d::D and d;\n    other [color=red];\n    {a, b} -> other -> {c, d};\n    b:sw == d;\n    {rank=same; d->e1;}\n    d->e2;\n};'
-    await test('renders block diagram with @type=block content', () => {
+    test('renders block diagram with @type=block content', { skip: mscgenSkip }, () => {
       const results = renderMscgenBatch([{ code: BLOCK_CODE, type: 'block' }])
       assert.strictEqual(results.length, 1)
       assert.ok(results[0].svg !== null, 'SVG should be rendered for block diagram')
       assert.ok(results[0].svg.includes('<svg'), 'SVG should contain <svg tag')
     })
 
-    await test('renders graph diagram — auto-detected from "graph {" syntax, no @type needed', () => {
+    test('renders graph diagram — auto-detected from "graph {" syntax, no @type needed', { skip: mscgenSkip }, () => {
       const results = renderMscgenBatch([{ code: GRAPH_CODE, type: 'graph' }])
       assert.strictEqual(results.length, 1)
       assert.ok(results[0].svg !== null, 'SVG should be rendered for graph diagram')
       assert.ok(results[0].svg.includes('<svg'), 'SVG should contain <svg tag')
     })
 
-    await test('renders multiple diagrams of mixed types', () => {
+    test('renders multiple diagrams of mixed types', { skip: mscgenSkip }, () => {
       const entries = [
         { code: 'u: UE;\nn: Network;\nu->n: msg1;', type: 'signalling' },
         { code: BLOCK_CODE, type: 'block' },
@@ -353,7 +348,7 @@ async function run() {
       assert.ok(results[2].svg !== null, 'graph SVG should be rendered')
     })
 
-    await test('all three types produce different SVG output for equivalent content', () => {
+    test('all three types produce different SVG output for equivalent content', { skip: mscgenSkip }, () => {
       const code = 'a: A;\nb: B;\na->b: hello;'
       const [sigResult] = renderMscgenBatch([{ code, type: 'signalling' }])
       const [blkResult] = renderMscgenBatch([{ code, type: 'block' }])
@@ -365,13 +360,12 @@ async function run() {
       assert.notStrictEqual(sigResult.svg, gphResult.svg, 'signalling vs graph should differ')
       assert.notStrictEqual(blkResult.svg, gphResult.svg, 'block vs graph should differ')
     })
-  } else {
-    console.log('  (skipped: msc-gen not installed)')
-  }
 
-  console.log('\nrenderMscgenCached')
 
-  await test('calls renderFn for uncached diagrams', async () => {
+})
+describe('renderMscgenCached', () => {
+
+  test('calls renderFn for uncached diagrams', async () => {
     const tempDir = path.join(os.tmpdir(), `mscgen-cache-test-${Date.now()}`)
     fs.mkdirSync(path.join(tempDir, 'spec'), { recursive: true })
     try {
@@ -390,7 +384,7 @@ async function run() {
     }
   })
 
-  await test('renderFn receives { code, type } entries', async () => {
+  test('renderFn receives { code, type } entries', async () => {
     const tempDir = path.join(os.tmpdir(), `mscgen-cache-test-${Date.now()}`)
     fs.mkdirSync(path.join(tempDir, 'spec'), { recursive: true })
     try {
@@ -407,7 +401,7 @@ async function run() {
     }
   })
 
-  await test('serves cached SVG without calling renderFn', async () => {
+  test('serves cached SVG without calling renderFn', async () => {
     const tempDir = path.join(os.tmpdir(), `mscgen-cache-test-${Date.now()}`)
     fs.mkdirSync(path.join(tempDir, 'spec'), { recursive: true })
     const cacheDir = path.join(tempDir, 'cached')
@@ -428,7 +422,7 @@ async function run() {
     }
   })
 
-  await test('block diagram uses different cache key than signalling for same code', async () => {
+  test('block diagram uses different cache key than signalling for same code', async () => {
     const raw = 'a: A;\nb: B;'
     const { code: codeS, cacheConfig: cfgS } = prepareMscgenCode(raw, '{}')
     const { code: codeB, cacheConfig: cfgB } = prepareMscgenCode('@type=block\n' + raw, '{}')
@@ -436,7 +430,7 @@ async function run() {
     assert.notStrictEqual(mscgenCacheKey(codeS, cfgS), mscgenCacheKey(codeB, cfgB))
   })
 
-  await test('block diagram cache is separate from signalling cache on disk', async () => {
+  test('block diagram cache is separate from signalling cache on disk', async () => {
     const tempDir = path.join(os.tmpdir(), `mscgen-cache-test-${Date.now()}`)
     fs.mkdirSync(path.join(tempDir, 'spec'), { recursive: true })
     const cacheDir = path.join(tempDir, 'cached')
@@ -466,7 +460,7 @@ async function run() {
     }
   })
 
-  await test('writes rendered SVG and PNG to cache', async () => {
+  test('writes rendered SVG and PNG to cache', async () => {
     const tempDir = path.join(os.tmpdir(), `mscgen-cache-test-${Date.now()}`)
     fs.mkdirSync(path.join(tempDir, 'spec'), { recursive: true })
     try {
@@ -485,14 +479,11 @@ async function run() {
     }
   })
 
-  await test('different config produces different cache key', async () => {
+  test('different config produces different cache key', async () => {
     const key1 = mscgenCacheKey('u: UE;', '{"a":1}')
     const key2 = mscgenCacheKey('u: UE;', '{"a":2}')
     assert.notStrictEqual(key1, key2, 'different configs should produce different cache keys')
   })
 
-  console.log(`\n${passed} passed, ${failed} failed`)
-  if (failed > 0) process.exit(1)
-}
 
-run()
+})

@@ -28,6 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Test framework migrated to `node:test`** — All 26 `.test.js` files and the RAN4 TypeScript tests migrated from a custom mini-framework (`let passed/failed`, manual `try/catch`) to Node.js built-in `node:test` (`test()`, `describe()`, `before()`, `after()`). All JS and RAN4 tests now run in a single unified `node --test --import tsx` invocation, producing one combined summary (907 tests). Conditional tests (msc-gen not installed, LibreOffice not installed, Word not installed) use `{ skip: '...' }` instead of silent early returns. `docxExport-e2e.test.js` (fires up MS Word) is excluded from `--quick` mode.
+
 - **`MarkdownToDocxConverter` renamed to `Md2Docx`** — The DOCX converter class is now exported as `Md2Docx` from `lib/md2docx/md2docx.js` and `lib/index.js`. The old name is no longer exported.
 - **Mermaid renderer extracted to `lib/common/mermaidRenderer.js`** — `renderMermaidBatch`, `renderMermaidToSvg`, `ensureMermaidBundle`, `findBrowser`, and `buildMermaidPageScript()` moved from `md2docx/handlers/mermaidHandler.js` into a VS Code-free common module. Still exported from `lib/index.js`. `renderMermaidViaWebview`, `renderWithCache`, and `cleanupMermaidCache` removed from the public API (caching is now handled by `diagramRenderers.js`; `renderMermaidViaWebview` lives in SpecPressExt).
 - **MSC-Gen renderer extracted to `lib/common/mscgenRenderer.js`** — CLI-based MSC-Gen rendering in a standalone VS Code-free module.

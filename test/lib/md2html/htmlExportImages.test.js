@@ -1,24 +1,10 @@
+const { test, describe } = require('node:test')
 const assert = require('assert')
 const fs = require('fs')
 const path = require('path')
 const os = require('os')
 
 const { Md2Html } = require('../../../lib/md2html/md2html')
-
-let passed = 0
-let failed = 0
-
-async function test(name, fn) {
-  try {
-    await fn()
-    console.log(`  ✓ ${name}`)
-    passed++
-  } catch (e) {
-    console.log(`  ✗ ${name}`)
-    console.log(`    ${e.message}`)
-    failed++
-  }
-}
 
 /**
  * Creates a temporary spec structure with the given markdown content,
@@ -93,10 +79,9 @@ function verifyImageLinks(html, mediaDir) {
   return imgSrcs.filter(s => s.startsWith('media/')).length
 }
 
-async function run() {
-  console.log('HTML export — PNG images')
+describe('HTML export — PNG images', () => {
 
-  await test('regular PNG image is copied to media/ with relative path', () => {
+  test('regular PNG image is copied to media/ with relative path', () => {
     const md = '# Test\n\n![alt text](assets/test.png)\n'
     const { html, mediaFiles, mediaDir, tempDir } = exportSpec(md, { withPng: true })
     try {
@@ -110,9 +95,10 @@ async function run() {
     }
   })
 
-  console.log('\nHTML export — mermaid diagrams (cached)')
+})
+describe('HTML export — mermaid diagrams (cached)', () => {
 
-  await test('mermaid diagram with cached SVG is included from cache', () => {
+  test('mermaid diagram with cached SVG is included from cache', () => {
     const code = 'graph TD; A-->B'
     const { cacheKey } = require('../../../lib/common/diagramCache')
     const { loadMermaidConfig } = require('../../../lib/common/mermaidConfig')
@@ -139,15 +125,10 @@ async function run() {
     }
   })
 
-  console.log('\nHTML export — mermaid diagrams (rendering)')
+})
+describe('HTML export — mermaid diagrams (rendering)', () => {
 
-  await test('mermaid diagram without cache is rendered if browser available', () => {
-    const { findBrowser } = require('../../../lib/md2docx/handlers/mermaidHandler')
-    if (!findBrowser()) {
-      console.log('    (skipped: no browser available)')
-      passed++
-      return
-    }
+  test('mermaid diagram without cache is rendered if browser available', { skip: (() => { const { findBrowser } = require('../../../lib/md2docx/handlers/mermaidHandler'); return findBrowser() ? undefined : 'no browser available' })() }, () => {
     const md = '# Test\n\n```mermaid\ngraph TD; X-->Y\n```\n'
     const { html, mediaFiles, mediaDir, tempDir } = exportSpec(md)
     try {
@@ -160,7 +141,7 @@ async function run() {
     }
   })
 
-  await test('mermaid diagram falls back to code block when rendering fails', () => {
+  test('mermaid diagram falls back to code block when rendering fails', () => {
     // Use invalid mermaid code that the browser can't render
     const md = '# Test\n\n```mermaid\nINVALID_NOT_A_DIAGRAM @#$%\n```\n'
     const { html, tempDir } = exportSpec(md)
@@ -175,9 +156,10 @@ async function run() {
     }
   })
 
-  console.log('\nHTML export — mscgen diagrams (cached)')
+})
+describe('HTML export — mscgen diagrams (cached)', () => {
 
-  await test('mscgen diagram with cached SVG is included from cache', () => {
+  test('mscgen diagram with cached SVG is included from cache', () => {
     const { cacheKey } = require('../../../lib/common/diagramCache')
     const { loadMscgenConfig, parseMscgenPreamble, applyMscgenPreamble } = require('../../../lib/common/mscgenConfig')
     const configJson = loadMscgenConfig(null)
@@ -203,15 +185,10 @@ async function run() {
     }
   })
 
-  console.log('\nHTML export — mscgen diagrams (rendering)')
+})
+describe('HTML export — mscgen diagrams (rendering)', () => {
 
-  await test('mscgen diagram without cache is rendered if msc-gen available', () => {
-    const { findMscgen } = require('../../../lib/md2docx/handlers/mscgenHandler')
-    if (!findMscgen()) {
-      console.log('    (skipped: msc-gen not installed)')
-      passed++
-      return
-    }
+  test('mscgen diagram without cache is rendered if msc-gen available', { skip: (() => { const { findMscgen } = require('../../../lib/md2docx/handlers/mscgenHandler'); return findMscgen() ? undefined : 'msc-gen not installed' })() }, () => {
     const md = '# Test\n\n```mscgen\na: A;\nb: B;\na->b: hello;\n```\n'
     const { html, mediaFiles, mediaDir, tempDir } = exportSpec(md)
     try {
@@ -224,7 +201,7 @@ async function run() {
     }
   })
 
-  await test('mscgen diagram falls back to code block on render failure', () => {
+  test('mscgen diagram falls back to code block on render failure', () => {
     const { findMscgen } = require('../../../lib/md2docx/handlers/mscgenHandler')
     if (!findMscgen()) {
       // If msc-gen isn't installed, any mscgen fence should produce fallback
@@ -255,9 +232,10 @@ async function run() {
     }
   })
 
-  console.log('\nHTML export — mixed content')
+})
+describe('HTML export — mixed content', () => {
 
-  await test('page with PNG, mermaid SVG, and mscgen SVG all use relative media/ paths', () => {
+  test('page with PNG, mermaid SVG, and mscgen SVG all use relative media/ paths', () => {
     const { cacheKey } = require('../../../lib/common/diagramCache')
     const { loadMermaidConfig } = require('../../../lib/common/mermaidConfig')
     const { loadMscgenConfig, parseMscgenPreamble, applyMscgenPreamble } = require('../../../lib/common/mscgenConfig')
@@ -317,7 +295,7 @@ async function run() {
     }
   })
 
-  await test('no absolute paths or protocol URIs leak into exported HTML', () => {
+  test('no absolute paths or protocol URIs leak into exported HTML', () => {
     const { cacheKey } = require('../../../lib/common/diagramCache')
     const { loadMermaidConfig } = require('../../../lib/common/mermaidConfig')
     const code = 'graph TD; Z-->W'
@@ -341,9 +319,10 @@ async function run() {
     }
   })
 
-  console.log('\nHTML export — front pages')
+})
+describe('HTML export — front pages', () => {
 
-  await test('standard front page is included when frontPageData is passed', () => {
+  test('standard front page is included when frontPageData is passed', () => {
     const md = '# Scope\n\nSome content.\n'
     const tempDir = path.join(os.tmpdir(), `specpress-fp-test-${Date.now()}-${Math.random().toString(36).slice(2)}`)
     const specDir = path.join(tempDir, 'spec')
@@ -361,7 +340,7 @@ async function run() {
     }
   })
 
-  await test('CR cover page is included and takes precedence over front page', () => {
+  test('CR cover page is included and takes precedence over front page', () => {
     const md = '# Scope\n\nSome content.\n'
     const tempDir = path.join(os.tmpdir(), `specpress-fp-test-${Date.now()}-${Math.random().toString(36).slice(2)}`)
     const specDir = path.join(tempDir, 'spec')
@@ -386,7 +365,7 @@ async function run() {
     }
   })
 
-  await test('no front page when frontPageData is null', () => {
+  test('no front page when frontPageData is null', () => {
     const md = '# Scope\n\nContent.\n'
     const tempDir = path.join(os.tmpdir(), `specpress-fp-test-${Date.now()}-${Math.random().toString(36).slice(2)}`)
     const specDir = path.join(tempDir, 'spec')
@@ -403,7 +382,7 @@ async function run() {
     }
   })
 
-  await test('CR cover page with minimal/incomplete metadata does not crash', () => {
+  test('CR cover page with minimal/incomplete metadata does not crash', () => {
     const md = '# Scope\n\nContent.\n'
     const tempDir = path.join(os.tmpdir(), `specpress-fp-test-${Date.now()}-${Math.random().toString(36).slice(2)}`)
     const specDir = path.join(tempDir, 'spec')
@@ -420,8 +399,5 @@ async function run() {
     }
   })
 
-  console.log(`\n${passed} passed, ${failed} failed`)
-  if (failed > 0) process.exit(1)
-}
 
-run()
+})

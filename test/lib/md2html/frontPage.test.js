@@ -1,3 +1,4 @@
+const { test, describe } = require('node:test')
 const assert = require('assert')
 const { buildFrontPageHtml } = require('../../../lib/md2html/frontPage')
 
@@ -12,87 +13,57 @@ const SAMPLE_DATA = {
   KEYWORDS: 'GSM, UMTS, LTE, 5G, methodology'
 }
 
-console.log('buildFrontPageHtml')
+describe('buildFrontPageHtml', () => {
+  test('substitutes SPEC_NUMBER', () => {
+    assert.ok(buildFrontPageHtml(SAMPLE_DATA).includes('3GPP TR 67.123'))
+  })
 
-// placeholder substitution
-;(() => {
-  const html = buildFrontPageHtml(SAMPLE_DATA)
-  assert(html.includes('3GPP TR 67.123'), 'contains spec number')
-  console.log('  \x1b[32m✓\x1b[0m substitutes SPEC_NUMBER')
-})()
+  test('substitutes VERSION', () => {
+    assert.ok(buildFrontPageHtml(SAMPLE_DATA).includes('V1.0.0'))
+  })
 
-;(() => {
-  const html = buildFrontPageHtml(SAMPLE_DATA)
-  assert(html.includes('V1.0.0'), 'contains version')
-  console.log('  \x1b[32m✓\x1b[0m substitutes VERSION')
-})()
+  test('substitutes DATE', () => {
+    assert.ok(buildFrontPageHtml(SAMPLE_DATA).includes('2026-03'))
+  })
 
-;(() => {
-  const html = buildFrontPageHtml(SAMPLE_DATA)
-  assert(html.includes('2026-03'), 'contains date')
-  console.log('  \x1b[32m✓\x1b[0m substitutes DATE')
-})()
+  test('substitutes DOC_TYPE', () => {
+    assert.ok(buildFrontPageHtml(SAMPLE_DATA).includes('Technical Report'))
+  })
 
-;(() => {
-  const html = buildFrontPageHtml(SAMPLE_DATA)
-  assert(html.includes('Technical Report'), 'contains doc type')
-  console.log('  \x1b[32m✓\x1b[0m substitutes DOC_TYPE')
-})()
+  test('substitutes RELEASE', () => {
+    assert.ok(buildFrontPageHtml(SAMPLE_DATA).includes('Release 20'))
+  })
 
-;(() => {
-  const html = buildFrontPageHtml(SAMPLE_DATA)
-  assert(html.includes('Release 20'), 'contains release')
-  console.log('  \x1b[32m✓\x1b[0m substitutes RELEASE')
-})()
+  test('substitutes KEYWORDS', () => {
+    assert.ok(buildFrontPageHtml(SAMPLE_DATA).includes('GSM, UMTS, LTE, 5G, methodology'))
+  })
 
-;(() => {
-  const html = buildFrontPageHtml(SAMPLE_DATA)
-  assert(html.includes('GSM, UMTS, LTE, 5G, methodology'), 'contains keywords')
-  console.log('  \x1b[32m✓\x1b[0m substitutes KEYWORDS')
-})()
+  test('derives YEAR from DATE', () => {
+    assert.ok(buildFrontPageHtml(SAMPLE_DATA).includes('2026'))
+  })
 
-// YEAR derivation
-;(() => {
-  const html = buildFrontPageHtml(SAMPLE_DATA)
-  assert(html.includes('2026'), 'derives year from DATE')
-  console.log('  \x1b[32m✓\x1b[0m derives YEAR from DATE')
-})()
+  test('uses explicit YEAR when provided', () => {
+    assert.ok(buildFrontPageHtml({ ...SAMPLE_DATA, YEAR: '2099' }).includes('2099'))
+  })
 
-;(() => {
-  const html = buildFrontPageHtml({ ...SAMPLE_DATA, YEAR: '2099' })
-  assert(html.includes('2099'), 'uses explicit YEAR')
-  console.log('  \x1b[32m✓\x1b[0m uses explicit YEAR when provided')
-})()
+  test('embeds logo images as base64 data URIs', () => {
+    const imgMatch = buildFrontPageHtml(SAMPLE_DATA).match(/src="(data:image\/[^"]+)"/)
+    assert.ok(imgMatch)
+    assert.ok(imgMatch[1].startsWith('data:image/'))
+  })
 
-// image embedding
-;(() => {
-  const html = buildFrontPageHtml(SAMPLE_DATA)
-  const imgMatch = html.match(/src="(data:image\/[^"]+)"/)
-  assert(imgMatch, 'has data URI for logo')
-  assert(imgMatch[1].startsWith('data:image/'), 'logo is embedded as base64 data URI')
-  console.log('  \x1b[32m✓\x1b[0m embeds logo images as base64 data URIs')
-})()
+  test('produces correct HTML structure', () => {
+    const html = buildFrontPageHtml(SAMPLE_DATA)
+    assert.ok(html.includes('class="cover-page"'))
+    assert.ok(html.includes('page-break-after'))
+    assert.ok(html.includes('Copyright Notification'))
+  })
 
-// structure
-;(() => {
-  const html = buildFrontPageHtml(SAMPLE_DATA)
-  assert(html.includes('class="cover-page"'), 'has cover-page wrapper')
-  assert(html.includes('page-break-after'), 'has page break between pages')
-  assert(html.includes('Copyright Notification'), 'has copyright section')
-  console.log('  \x1b[32m✓\x1b[0m produces correct HTML structure')
-})()
+  test('works with empty data object', () => {
+    assert.ok(buildFrontPageHtml({}).includes('class="cover-page"'))
+  })
 
-// empty/null data
-;(() => {
-  const html = buildFrontPageHtml({})
-  assert(html.includes('class="cover-page"'), 'still produces HTML with empty data')
-  console.log('  \x1b[32m✓\x1b[0m works with empty data object')
-})()
-
-;(() => {
-  const html = buildFrontPageHtml(null)
-  assert(html === '', 'returns empty string for null data')
-  console.log('  \x1b[32m✓\x1b[0m works with null data')
-})()
-
-console.log('\n12 passed, 0 failed')
+  test('works with null data', () => {
+    assert.strictEqual(buildFrontPageHtml(null), '')
+  })
+})

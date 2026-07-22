@@ -1,3 +1,4 @@
+const { test, describe } = require('node:test')
 /**
  * End-to-end tests for HTML diff (change tracking).
  *
@@ -12,29 +13,13 @@ const os = require('os')
 const { Md2Html } = require('../../../lib/md2html/md2html')
 const { diffHtml } = require('../../../lib/md2html/htmlDiff')
 
-let passed = 0
-let failed = 0
-
-async function test(name, fn) {
-  try {
-    await fn()
-    console.log(`  ✓ ${name}`)
-    passed++
-  } catch (e) {
-    console.log(`  ✗ ${name}`)
-    console.log(`    ${e.message}`)
-    failed++
-  }
-}
-
 function createHandler() {
   return new Md2Html({})
 }
 
-async function run() {
-  console.log('HTML diff — text changes')
+describe('HTML diff — text changes', () => {
 
-  await test('added text produces <ins> markup', () => {
+  test('added text produces <ins> markup', () => {
     const handler = createHandler()
     const baseline = '# Heading\n\nOriginal text.\n'
     const current = '# Heading\n\nOriginal text. Added sentence.\n'
@@ -43,7 +28,7 @@ async function run() {
     assert.ok(result.includes('Added sentence'), 'should contain the added text')
   })
 
-  await test('removed text produces <del> markup', () => {
+  test('removed text produces <del> markup', () => {
     const handler = createHandler()
     const baseline = '# Heading\n\nThis will be removed.\n'
     const current = '# Heading\n\n'
@@ -52,7 +37,7 @@ async function run() {
     assert.ok(result.includes('removed'), 'should contain the deleted text')
   })
 
-  await test('modified text produces both <ins> and <del>', () => {
+  test('modified text produces both <ins> and <del>', () => {
     const handler = createHandler()
     const baseline = '# Heading\n\nThe old word here.\n'
     const current = '# Heading\n\nThe new word here.\n'
@@ -63,7 +48,7 @@ async function run() {
     assert.ok(result.includes('old'), 'should contain old text')
   })
 
-  await test('identical content produces no <ins> or <del>', () => {
+  test('identical content produces no <ins> or <del>', () => {
     const handler = createHandler()
     const content = '# Heading\n\nSame content.\n'
     const result = diffHtml({ baselineContent: content, currentContent: content, handler })
@@ -72,9 +57,10 @@ async function run() {
     assert.ok(result.includes('Same content'), 'content should be present')
   })
 
-  console.log('\nHTML diff — paragraph changes')
+})
+describe('HTML diff — paragraph changes', () => {
 
-  await test('added paragraph is tracked', () => {
+  test('added paragraph is tracked', () => {
     const handler = createHandler()
     const baseline = '# Heading\n\nFirst paragraph.\n'
     const current = '# Heading\n\nFirst paragraph.\n\nSecond paragraph.\n'
@@ -83,7 +69,7 @@ async function run() {
     assert.ok(result.includes('Second paragraph'), 'new paragraph content present')
   })
 
-  await test('removed paragraph is tracked', () => {
+  test('removed paragraph is tracked', () => {
     const handler = createHandler()
     const baseline = '# Heading\n\nKeep this.\n\nRemove this.\n'
     const current = '# Heading\n\nKeep this.\n'
@@ -92,9 +78,10 @@ async function run() {
     assert.ok(result.includes('Remove this'), 'deleted paragraph content present')
   })
 
-  console.log('\nHTML diff — heading changes')
+})
+describe('HTML diff — heading changes', () => {
 
-  await test('modified heading is tracked', () => {
+  test('modified heading is tracked', () => {
     const handler = createHandler()
     const baseline = '# Old Title\n\nContent.\n'
     const current = '# New Title\n\nContent.\n'
@@ -105,9 +92,10 @@ async function run() {
     assert.ok(result.includes('New'), 'new heading word should be in output')
   })
 
-  console.log('\nHTML diff — image handling')
+})
+describe('HTML diff — image handling', () => {
 
-  await test('added image is shown as inserted', () => {
+  test('added image is shown as inserted', () => {
     const handler = createHandler()
     const baseline = '# Heading\n\nText only.\n'
     const current = '# Heading\n\nText only.\n\n![photo](test.png)\n'
@@ -119,7 +107,7 @@ async function run() {
     )
   })
 
-  await test('removed image is shown as deleted', () => {
+  test('removed image is shown as deleted', () => {
     const handler = createHandler()
     const baseline = '# Heading\n\n![photo](test.png)\n\nText.\n'
     const current = '# Heading\n\nText.\n'
@@ -130,9 +118,10 @@ async function run() {
     )
   })
 
-  console.log('\nHTML diff — diagram handling')
+})
+describe('HTML diff — diagram handling', () => {
 
-  await test('added mermaid diagram is shown as inserted', () => {
+  test('added mermaid diagram is shown as inserted', () => {
     const handler = createHandler()
     const baseline = '# Heading\n\nText.\n'
     const current = '# Heading\n\nText.\n\n```mermaid\ngraph TD; A-->B\n```\n'
@@ -143,7 +132,7 @@ async function run() {
     )
   })
 
-  await test('removed mermaid diagram is shown as deleted', () => {
+  test('removed mermaid diagram is shown as deleted', () => {
     const handler = createHandler()
     const baseline = '# Heading\n\n```mermaid\ngraph TD; A-->B\n```\n\nText.\n'
     const current = '# Heading\n\nText.\n'
@@ -154,7 +143,7 @@ async function run() {
     )
   })
 
-  await test('modified diagram shows both old and new', () => {
+  test('modified diagram shows both old and new', () => {
     const handler = createHandler()
     const baseline = '# Heading\n\n```mermaid\ngraph TD; A-->B\n```\n'
     const current = '# Heading\n\n```mermaid\ngraph TD; X-->Y\n```\n'
@@ -166,9 +155,10 @@ async function run() {
     )
   })
 
-  console.log('\nHTML diff — returns valid HTML')
+})
+describe('HTML diff — returns valid HTML', () => {
 
-  await test('result is a valid HTML body (no full document wrapper)', () => {
+  test('result is a valid HTML body (no full document wrapper)', () => {
     const handler = createHandler()
     const baseline = '# Hello\n\nWorld.\n'
     const current = '# Hello\n\nEarth.\n'
@@ -179,7 +169,7 @@ async function run() {
     assert.ok(result.includes('<h1') || result.includes('<p'), 'should contain HTML elements')
   })
 
-  await test('empty baseline (new document) shows everything as inserted', () => {
+  test('empty baseline (new document) shows everything as inserted', () => {
     const handler = createHandler()
     const baseline = ''
     const current = '# New Heading\n\nNew content.\n'
@@ -188,7 +178,7 @@ async function run() {
     assert.ok(result.includes('<ins'), 'new content should be marked as insertion')
   })
 
-  await test('empty current (deleted document) shows everything as deleted', () => {
+  test('empty current (deleted document) shows everything as deleted', () => {
     const handler = createHandler()
     const baseline = '# Old Heading\n\nOld content.\n'
     const current = ''
@@ -197,8 +187,5 @@ async function run() {
     assert.ok(result.includes('<del'), 'old content should be marked as deletion')
   })
 
-  console.log(`\n${passed} passed, ${failed} failed`)
-  if (failed > 0) process.exit(1)
-}
 
-run()
+})

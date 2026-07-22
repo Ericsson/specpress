@@ -1,3 +1,4 @@
+const { test, describe } = require('node:test')
 const assert = require('assert')
 const fs = require('fs')
 const path = require('path')
@@ -5,21 +6,6 @@ const os = require('os')
 const JSZip = require('jszip')
 const { Md2Docx } = require('../../../../lib/md2docx/md2docx')
 const { FileResolver } = require('../../../../lib/common/fileResolver')
-
-let passed = 0
-let failed = 0
-
-async function test(name, fn) {
-  try {
-    await fn()
-    console.log(`  \u2713 ${name}`)
-    passed++
-  } catch (e) {
-    console.log(`  \u2717 ${name}`)
-    console.log(`    ${e.message}`)
-    failed++
-  }
-}
 
 // Minimal 1x1 red PNG for testing
 const RED_PNG = Buffer.from(
@@ -57,10 +43,9 @@ async function mdToDocXmlWithResolver(md, fileResolver, baseDir) {
   }
 }
 
-async function run() {
-  console.log('fileResolver \u2014 images')
+describe('fileResolver \u2014 images', () => {
 
-  await test('image is read via fileResolver instead of filesystem', async () => {
+  test('image is read via fileResolver instead of filesystem', async () => {
     let resolvedPath = null
     const fileResolver = makeTestResolver((filePath) => {
       resolvedPath = filePath
@@ -73,7 +58,7 @@ async function run() {
     assert.strictEqual(converter.imageCount, 1, 'image should be embedded')
   })
 
-  await test('image from fileResolver is embedded in DOCX media', async () => {
+  test('image from fileResolver is embedded in DOCX media', async () => {
     const fileResolver = makeTestResolver(() => RED_PNG)
     const md = '![alt](resolved-image.png)\n'
     const { zip } = await mdToDocXmlWithResolver(md, fileResolver)
@@ -81,7 +66,7 @@ async function run() {
     assert.ok(mediaFiles.length >= 1, 'should have at least one media file')
   })
 
-  await test('without fileResolver, missing image produces fallback text', async () => {
+  test('without fileResolver, missing image produces fallback text', async () => {
     const converter = new Md2Docx()
     const tmp = os.tmpdir()
     const ts = Date.now() + '_' + Math.random().toString(36).slice(2)
@@ -98,9 +83,10 @@ async function run() {
     }
   })
 
-  console.log('\nfileResolver \u2014 linked JsonTable')
+})
+describe('fileResolver \u2014 linked JsonTable', () => {
 
-  await test('linked JsonTable is read via fileResolver', async () => {
+  test('linked JsonTable is read via fileResolver', async () => {
     let resolvedPath = null
     const jsonData = JSON.stringify({
       columns: [{ key: 'a', name: 'Col A' }],
@@ -120,7 +106,7 @@ async function run() {
     assert.ok(xml.includes('from resolver'), 'table content from resolver should appear in DOCX')
   })
 
-  await test('linked JsonTable from fileResolver renders correct cell content', async () => {
+  test('linked JsonTable from fileResolver renders correct cell content', async () => {
     const jsonData = JSON.stringify({
       columns: [{ key: 'x', name: 'Header' }, { key: 'y', name: 'Value' }],
       rows: [{ x: 'key1', y: 'val1' }, { x: 'key2', y: 'val2' }]
@@ -136,7 +122,7 @@ async function run() {
     assert.ok(xml.includes('Header'), 'should contain column header')
   })
 
-  await test('without fileResolver, missing JsonTable produces error text', async () => {
+  test('without fileResolver, missing JsonTable produces error text', async () => {
     const converter = new Md2Docx()
     const tmp = os.tmpdir()
     const ts = Date.now() + '_' + Math.random().toString(36).slice(2)
@@ -152,9 +138,10 @@ async function run() {
     }
   })
 
-  console.log('\nfileResolver \u2014 combined scenario')
+})
+describe('fileResolver \u2014 combined scenario', () => {
 
-  await test('document with both image and JsonTable uses fileResolver for both', async () => {
+  test('document with both image and JsonTable uses fileResolver for both', async () => {
     const resolvedPaths = []
     const jsonData = JSON.stringify({
       columns: [{ key: 'c', name: 'Column' }],
@@ -173,8 +160,5 @@ async function run() {
     assert.ok(xml.includes('table-value'), 'table content should appear')
   })
 
-  console.log(`\n${passed} passed, ${failed} failed`)
-  process.exit(failed > 0 ? 1 : 0)
-}
 
-run()
+})

@@ -1,34 +1,8 @@
+const { test, describe } = require('node:test')
 const assert = require('assert')
 const { Md2Html } = require('../../../lib/md2html/md2html')
 const { Md2Docx, buildInlineRuns } = require('../../../lib/md2docx/md2docx')
 const { PARA } = require('../../../lib/common/specProcessor')
-
-let passed = 0
-let failed = 0
-
-function test(name, fn) {
-  try {
-    fn()
-    console.log(`  ✓ ${name}`)
-    passed++
-  } catch (e) {
-    console.log(`  ✗ ${name}`)
-    console.log(`    ${e.message}`)
-    failed++
-  }
-}
-
-async function asyncTest(name, fn) {
-  try {
-    await fn()
-    console.log(`  ✓ ${name}`)
-    passed++
-  } catch (e) {
-    console.log(`  ✗ ${name}`)
-    console.log(`    ${e.message}`)
-    failed++
-  }
-}
 
 /**
  * Extracts the w:pStyle value from a docx Paragraph, or null if none.
@@ -127,43 +101,42 @@ const snippets = {
 
 // ── Verify all PARA types have test snippets ─────────────────────
 
-console.log('PARA type coverage')
+describe('PARA type coverage', () => {
 
-test('every PARA type has a test snippet', () => {
-  const missing = paraTypes.filter(t => !snippets[PARA[t]])
-  assert.deepStrictEqual(missing, [], `Missing snippets for: ${missing.join(', ')}`)
-})
-
-// ── HTML tests ───────────────────────────────────────────────────
-
-console.log('\nHTML classification')
-
-const htmlProcessor = new Md2Html()
-
-for (const type of paraTypes) {
-  const key = PARA[type]
-  const snippet = snippets[key]
-  test(`${type} is handled`, () => {
-    const html = htmlProcessor.renderBody(snippet.md, false)
-    assert.ok(snippet.htmlCheck(html), `HTML check failed for ${type}:\n${html}`)
+  test('every PARA type has a test snippet', () => {
+    const missing = paraTypes.filter(t => !snippets[PARA[t]])
+    assert.deepStrictEqual(missing, [], `Missing snippets for: ${missing.join(', ')}`)
   })
-}
 
-// ── DOCX tests ───────────────────────────────────────────────────
+  // ── HTML tests ───────────────────────────────────────────────────
 
-console.log('\nDOCX classification')
+})
+describe('HTML classification', () => {
 
-async function runDocxTests() {
+  const htmlProcessor = new Md2Html()
+
   for (const type of paraTypes) {
     const key = PARA[type]
     const snippet = snippets[key]
-    await asyncTest(`${type} is handled`, async () => {
+    test(`${type} is handled`, () => {
+      const html = htmlProcessor.renderBody(snippet.md, false)
+      assert.ok(snippet.htmlCheck(html), `HTML check failed for ${type}:\n${html}`)
+    })
+  }
+
+  // ── DOCX tests ───────────────────────────────────────────────────
+
+})
+describe('DOCX classification', () => {
+  for (const type of paraTypes) {
+    const key = PARA[type]
+    const snippet = snippets[key]
+    test(`${type} is handled`, async () => {
       const elements = await docxElements(snippet.md)
       if (snippet.docxStyle !== undefined) {
         assert.ok(elements.length > 0, `No elements produced for ${type}`)
         const styles = elements.map(getDocxStyle)
         if (snippet.docxStyle === null) {
-          // PARAGRAPH: should have no special style
           assert.ok(styles.includes(null), `Expected unstyled paragraph for ${type}, got: ${styles}`)
         } else {
           assert.ok(styles.includes(snippet.docxStyle), `Expected style '${snippet.docxStyle}' for ${type}, got: ${styles}`)
@@ -173,20 +146,13 @@ async function runDocxTests() {
       }
     })
   }
-}
+})
 
-runDocxTests().then(async () => {
-  // ── EXAMPLE colon-space → tab replacement ──────────────────────
-
-  console.log('\nEXAMPLE colon-tab replacement')
-
-  await asyncTest('EXAMPLE 3: replaces ": " with ":\\t" in DOCX', async () => {
+describe('EXAMPLE colon-tab replacement', () => {
+  test('EXAMPLE 3: replaces ": " with ":\\t" in DOCX', async () => {
     const elements = await docxElements('EXAMPLE 3: This is an example')
     const json = JSON.stringify(elements)
     assert.ok(json.includes('EXAMPLE 3:\\tThis'), `Expected tab after colon in DOCX output`)
     assert.ok(!json.includes('EXAMPLE 3: This'), `Should not contain ": " (colon-space)`)
   })
-
-  console.log(`\n${passed} passed, ${failed} failed`)
-  process.exit(failed > 0 ? 1 : 0)
 })

@@ -1,3 +1,4 @@
+const { test, describe } = require('node:test')
 const assert = require('assert')
 const fs = require('fs')
 const path = require('path')
@@ -7,21 +8,6 @@ const { Md2Docx } = require('../../../../lib/md2docx/md2docx')
 const { renderMermaidCached } = require('../../../../lib/common/diagramRenderers')
 const { cleanupDiagramCache } = require('../../../../lib/common/diagramCache')
 const { getSvgDimensions } = require('../../../../lib/common/diagramCache')
-
-let passed = 0
-let failed = 0
-
-async function test(name, fn) {
-  try {
-    await fn()
-    console.log(`  ✓ ${name}`)
-    passed++
-  } catch (e) {
-    console.log(`  ✗ ${name}`)
-    console.log(`    ${e.message}`)
-    failed++
-  }
-}
 
 const MOCK_SVG = '<svg viewBox="0 0 200 100" xmlns="http://www.w3.org/2000/svg"><text>mock</text></svg>'
 
@@ -65,10 +51,9 @@ async function convertAndRead(md, renderer) {
   }
 }
 
-async function run() {
-  console.log('mermaid DOCX embedding')
+describe('mermaid DOCX embedding', () => {
 
-  await test('mermaid fence is embedded as SVG image via mermaidRenderer', async () => {
+  test('mermaid fence is embedded as SVG image via mermaidRenderer', async () => {
     const mockRenderer = async (codes) => codes.map(() => ({ svg: MOCK_SVG, png: null }))
     const { zip, converter } = await convertAndRead(MERMAID_MD, mockRenderer)
     const svgFiles = Object.keys(zip.files).filter(f => f.endsWith('.svg'))
@@ -78,7 +63,7 @@ async function run() {
     assert.strictEqual(converter.imageCount, 1, 'imageCount should be 1')
   })
 
-  await test('mermaid renderer receives the diagram code', async () => {
+  test('mermaid renderer receives the diagram code', async () => {
     let receivedCodes = null
     const mockRenderer = async (codes) => { receivedCodes = codes; return codes.map(() => ({ svg: MOCK_SVG, png: null })) }
     await convertAndRead(MERMAID_MD, mockRenderer)
@@ -87,7 +72,7 @@ async function run() {
     assert.ok(receivedCodes[0].includes('SecurityModeCommand'), 'code should contain the diagram text')
   })
 
-  await test('null SVG produces raw code fallback', async () => {
+  test('null SVG produces raw code fallback', async () => {
     const mockRenderer = async (codes) => codes.map(() => ({ svg: null, png: null }))
     const { zip, converter } = await convertAndRead(MERMAID_MD, mockRenderer)
     const docXml = await zip.file('word/document.xml').async('string')
@@ -95,13 +80,13 @@ async function run() {
     assert.strictEqual(converter.imageCount, 0, 'imageCount should be 0')
   })
 
-  await test('CSS !important rules are applied to inline styles for Word compatibility', async () => {
+  test('CSS !important rules are applied to inline styles for Word compatibility', async () => {
     const svgWithCss = `<svg viewBox="0 0 400 200" xmlns="http://www.w3.org/2000/svg">
-<style>.actor{font-size:14px!important;}.messageText{font-size:13px!important;}</style>
-<text style="font-size: 16px; font-weight: 400;" class="actor" x="50" y="20">Network</text>
-<text style="font-size: 16px; font-weight: 400;" class="messageText" x="100" y="60">SecurityModeCommand</text>
-<text style="font-size: 16px;" class="other" x="100" y="100">Unchanged</text>
-</svg>`
+  <style>.actor{font-size:14px!important;}.messageText{font-size:13px!important;}</style>
+  <text style="font-size: 16px; font-weight: 400;" class="actor" x="50" y="20">Network</text>
+  <text style="font-size: 16px; font-weight: 400;" class="messageText" x="100" y="60">SecurityModeCommand</text>
+  <text style="font-size: 16px;" class="other" x="100" y="100">Unchanged</text>
+  </svg>`
     const mockRenderer = async (codes) => codes.map(() => ({ svg: svgWithCss, png: null }))
     const { zip } = await convertAndRead(MERMAID_MD, mockRenderer)
     const svgFiles = Object.keys(zip.files).filter(f => f.endsWith('.svg'))
@@ -115,7 +100,7 @@ async function run() {
     assert.ok(svgContent.match(/class="other"[^>]*font-size: 16px/) || svgContent.match(/font-size: 16px[^>]*class="other"/), 'other class should keep 16px')
   })
 
-  await test('SVG without style block is unchanged by post-processing', async () => {
+  test('SVG without style block is unchanged by post-processing', async () => {
     const svgNoStyle = '<svg viewBox="0 0 200 100" xmlns="http://www.w3.org/2000/svg"><text style="font-size: 16px;" class="actor" x="50" y="20">Test</text></svg>'
     const mockRenderer = async (codes) => codes.map(() => ({ svg: svgNoStyle, png: null }))
     const { zip } = await convertAndRead(MERMAID_MD, mockRenderer)
@@ -124,7 +109,7 @@ async function run() {
     assert.ok(svgContent.includes('font-size: 16px'), 'font-size should remain 16px when no style block')
   })
 
-  await test('real PNG from renderer is used as fallback (not 1x1)', async () => {
+  test('real PNG from renderer is used as fallback (not 1x1)', async () => {
     const mockRenderer = async (codes) => codes.map(() => ({ svg: MOCK_SVG, png: MOCK_PNG }))
     const { zip } = await convertAndRead(MERMAID_MD, mockRenderer)
     const pngFiles = Object.keys(zip.files).filter(f => f.endsWith('.png'))
@@ -134,7 +119,7 @@ async function run() {
     assert.ok(pngBuf.equals(MOCK_PNG), 'PNG content should match what the renderer returned')
   })
 
-  await test('1x1 fallback PNG is used when renderer returns null png', async () => {
+  test('1x1 fallback PNG is used when renderer returns null png', async () => {
     const mockRenderer = async (codes) => codes.map(() => ({ svg: MOCK_SVG, png: null }))
     const { zip } = await convertAndRead(MERMAID_MD, mockRenderer)
     const pngFiles = Object.keys(zip.files).filter(f => f.endsWith('.png'))
@@ -143,7 +128,7 @@ async function run() {
     assert.ok(pngBuf.equals(SMALL_FALLBACK_PNG), 'should use the hardcoded 1x1 fallback PNG')
   })
 
-  await test('each diagram gets its own PNG fallback', async () => {
+  test('each diagram gets its own PNG fallback', async () => {
     const MOCK_PNG_2 = Buffer.concat([MOCK_PNG, Buffer.alloc(1)]) // slightly different
     const pngs = [MOCK_PNG, MOCK_PNG_2]
     const mockRenderer = async (codes) => codes.map((_, i) => ({ svg: MOCK_SVG, png: pngs[i] }))
@@ -156,14 +141,15 @@ async function run() {
     assert.ok(!buf0.equals(buf1), 'the two PNG fallbacks should be distinct')
   })
 
-  await test('no mermaid fences does not call renderer', async () => {
+  test('no mermaid fences does not call renderer', async () => {
     let called = false
     const mockRenderer = async (codes) => { called = true; return codes.map(() => ({ svg: MOCK_SVG, png: null })) }
     await convertAndRead('# Just a heading\n\nSome text.\n', mockRenderer)
     assert.ok(!called, 'renderer should not be called when no mermaid fences')
   })
 
-  console.log('\nmermaid SVG caching')
+})
+describe('mermaid SVG caching', () => {
 
   function makeSpecRoot(mermaidCodes) {
     const root = path.join(os.tmpdir(), `.~mermaid_repo_${Date.now()}_${Math.random().toString(36).slice(2)}`)
@@ -174,7 +160,7 @@ async function run() {
     return specRoot
   }
 
-  await test('renderMermaidCached calls renderFn for uncached diagrams', async () => {
+  test('renderMermaidCached calls renderFn for uncached diagrams', async () => {
     const code = 'graph TD; A-->B'
     const specRoot = makeSpecRoot([code])
     let renderCalled = false
@@ -186,7 +172,7 @@ async function run() {
     fs.rmSync(path.dirname(specRoot), { recursive: true })
   })
 
-  await test('renderMermaidCached serves cached SVG without calling renderFn', async () => {
+  test('renderMermaidCached serves cached SVG without calling renderFn', async () => {
     const code = 'graph TD; X-->Y'
     const specRoot = makeSpecRoot([code])
     const renderFn = async (codes) => codes.map(() => ({ svg: MOCK_SVG, png: null }))
@@ -199,7 +185,7 @@ async function run() {
     fs.rmSync(path.dirname(specRoot), { recursive: true })
   })
 
-  await test('renderMermaidCached re-renders when source changes', async () => {
+  test('renderMermaidCached re-renders when source changes', async () => {
     const specRoot = makeSpecRoot(['graph TD; A-->C'])
     const renderFn = async (codes) => codes.map(c => ({ svg: `<svg>${c}</svg>`, png: null }))
     await renderMermaidCached(['graph TD; A-->B'], '{}', specRoot, renderFn)
@@ -208,7 +194,7 @@ async function run() {
     fs.rmSync(path.dirname(specRoot), { recursive: true })
   })
 
-  await test('cleanup removes stale cached SVGs', async () => {
+  test('cleanup removes stale cached SVGs', async () => {
     const code1 = 'graph TD; Keep-->This'
     const code2 = 'graph TD; Remove-->This'
     const specRoot = makeSpecRoot([code1, code2])
@@ -225,7 +211,7 @@ async function run() {
     fs.rmSync(path.dirname(specRoot), { recursive: true })
   })
 
-  await test('multiple mermaid fences are batched in one renderFn call', async () => {
+  test('multiple mermaid fences are batched in one renderFn call', async () => {
     const codes = ['graph TD; A-->B', 'graph TD; C-->D', 'graph TD; E-->F']
     const specRoot = makeSpecRoot(codes)
     let callCount = 0
@@ -238,7 +224,7 @@ async function run() {
     fs.rmSync(path.dirname(specRoot), { recursive: true })
   })
 
-  await test('mixed cached and uncached in one batch', async () => {
+  test('mixed cached and uncached in one batch', async () => {
     const code1 = 'graph TD; Cached-->One'
     const code2 = 'graph TD; New-->Two'
     const specRoot = makeSpecRoot([code1, code2])
@@ -256,7 +242,7 @@ async function run() {
     fs.rmSync(path.dirname(specRoot), { recursive: true })
   })
 
-  await test('different config produces different cache key', async () => {
+  test('different config produces different cache key', async () => {
     const code = 'graph TD; Same-->Code'
     const specRoot = makeSpecRoot([code])
     const renderFn = async (codes) => codes.map(() => ({ svg: '<svg>config1</svg>', png: null }))
@@ -268,7 +254,7 @@ async function run() {
     fs.rmSync(path.dirname(specRoot), { recursive: true })
   })
 
-  await test('CRLF in source files matches LF-normalized cache keys', async () => {
+  test('CRLF in source files matches LF-normalized cache keys', async () => {
     const codeLF = 'graph TD\n    A-->B'
     const specRoot = makeSpecRoot([codeLF])
     // Write the MD file with CRLF line endings
@@ -283,7 +269,7 @@ async function run() {
     fs.rmSync(path.dirname(specRoot), { recursive: true })
   })
 
-  await test('cleanup scans subdirectories for mermaid fences', async () => {
+  test('cleanup scans subdirectories for mermaid fences', async () => {
     const root = path.join(os.tmpdir(), `.~mermaid_sub_${Date.now()}_${Math.random().toString(36).slice(2)}`)
     const specRoot = path.join(root, 'spec')
     const subDir = path.join(specRoot, 'sub')
@@ -304,29 +290,26 @@ async function run() {
     fs.rmSync(root, { recursive: true })
   })
 
-  console.log('\ngetSvgDimensions')
+})
+describe('getSvgDimensions', () => {
 
-  await test('extracts dimensions from viewBox', async () => {
+  test('extracts dimensions from viewBox', async () => {
     const { width, height } = getSvgDimensions('<svg viewBox="0 0 400 200"></svg>')
     assert.strictEqual(width, 400)
     assert.strictEqual(height, 200)
   })
 
-  await test('caps width at 604 and scales height proportionally', async () => {
+  test('caps width at 604 and scales height proportionally', async () => {
     const { width, height } = getSvgDimensions('<svg viewBox="0 0 1208 400"></svg>')
     assert.strictEqual(width, 604)
     assert.strictEqual(height, 200)
   })
 
-  await test('returns defaults when no viewBox', async () => {
+  test('returns defaults when no viewBox', async () => {
     const { width, height } = getSvgDimensions('<svg></svg>')
     assert.strictEqual(width, 604)
     assert.strictEqual(height, 400)
   })
 
-  console.log(`\n${passed} passed, ${failed} failed`)
-  process.exit(failed > 0 ? 1 : 0)
-}
 
-run()
-
+})

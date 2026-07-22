@@ -1,24 +1,10 @@
+const { test, describe } = require('node:test')
 const assert = require('assert')
 const fs = require('fs')
 const path = require('path')
 const os = require('os')
 const JSZip = require('jszip')
 const { Md2Docx } = require('../../../lib/md2docx/md2docx')
-
-let passed = 0
-let failed = 0
-
-async function test(name, fn) {
-  try {
-    await fn()
-    console.log(`  ✓ ${name}`)
-    passed++
-  } catch (e) {
-    console.log(`  ✗ ${name}`)
-    console.log(`    ${e.message}`)
-    failed++
-  }
-}
 
 /**
  * Converts markdown to DOCX and returns the parsed document.xml content.
@@ -57,28 +43,27 @@ function findTexts(xml) {
   return texts
 }
 
-async function run() {
-  // ── Headings ──────────────────────────────────────────────────
+// ── Headings ──────────────────────────────────────────────────
 
-  console.log('headings')
+describe('headings', () => {
 
-  await test('h1 gets Heading1 style', async () => {
+  test('h1 gets Heading1 style', async () => {
     const { xml } = await mdToDocXml('# Top Level Heading\n')
     assert.ok(findStyles(xml).includes('Heading1'))
     assert.ok(findTexts(xml).some(t => t.includes('Top Level Heading')), 'unnumbered heading text should not be split')
   })
 
-  await test('h2 gets Heading2 style', async () => {
+  test('h2 gets Heading2 style', async () => {
     const { xml } = await mdToDocXml('## Second Level\n')
     assert.ok(findStyles(xml).includes('Heading2'))
   })
 
-  await test('h3 gets Heading3 style', async () => {
+  test('h3 gets Heading3 style', async () => {
     const { xml } = await mdToDocXml('### Third Level\n')
     assert.ok(findStyles(xml).includes('Heading3'))
   })
 
-  await test('h4-h6 get corresponding heading styles', async () => {
+  test('h4-h6 get corresponding heading styles', async () => {
     const { xml } = await mdToDocXml('#### H4\n\n##### H5\n\n###### H6\n')
     const styles = findStyles(xml)
     assert.ok(styles.includes('Heading4'))
@@ -86,19 +71,19 @@ async function run() {
     assert.ok(styles.includes('Heading6'))
   })
 
-  await test('numbered heading inserts tab between number and name', async () => {
+  test('numbered heading inserts tab between number and name', async () => {
     const { xml } = await mdToDocXml('## 1.1 Introduction\n')
     assert.ok(findTexts(xml).some(t => t.includes('1.1\tIntroduction')), 'should have tab between number and name')
   })
 
-  await test('unnumbered heading does not get tab inserted', async () => {
+  test('unnumbered heading does not get tab inserted', async () => {
     const { xml } = await mdToDocXml('## Introduction\n')
     const texts = findTexts(xml)
     assert.ok(texts.some(t => t.includes('Introduction')))
     assert.ok(!texts.some(t => t.includes('\t')), 'no tab in unnumbered heading')
   })
 
-  await test('Annex heading gets Heading8 style', async () => {
+  test('Annex heading gets Heading8 style', async () => {
     const { xml } = await mdToDocXml('# Annex A: Supplementary info\n')
     assert.ok(findStyles(xml).includes('Heading8'))
     assert.ok(findTexts(xml).some(t => t.includes('Annex A:')))
@@ -106,32 +91,33 @@ async function run() {
 
   // ── Paragraphs ────────────────────────────────────────────────
 
-  console.log('\nparagraphs')
+})
+describe('paragraphs', () => {
 
-  await test('regular paragraph has no explicit style (Normal default)', async () => {
+  test('regular paragraph has no explicit style (Normal default)', async () => {
     const { xml } = await mdToDocXml('Just a regular paragraph.\n')
     const texts = findTexts(xml)
     assert.ok(texts.some(t => t.includes('Just a regular paragraph')))
   })
 
-  await test('NOTE paragraph gets NO style with colon-tab', async () => {
+  test('NOTE paragraph gets NO style with colon-tab', async () => {
     const { xml } = await mdToDocXml('NOTE: This is important.\n')
     assert.ok(findStyles(xml).includes('NO'))
     assert.ok(findTexts(xml).some(t => t.includes('NOTE:\t')), 'should replace ": " with ":\\t"')
   })
 
-  await test('NOTE 2: numbered note gets NO style', async () => {
+  test('NOTE 2: numbered note gets NO style', async () => {
     const { xml } = await mdToDocXml('NOTE 2: Second note.\n')
     assert.ok(findStyles(xml).includes('NO'))
   })
 
-  await test('Editor\'s Note gets EN style in red', async () => {
+  test('Editor\'s Note gets EN style in red', async () => {
     const { xml } = await mdToDocXml("Editor's Note: Fix this later.\n")
     assert.ok(findStyles(xml).includes('EN'))
     assert.ok(xml.includes('FF0000'), 'should have red color')
   })
 
-  await test('EXAMPLE gets EX style with colon-tab', async () => {
+  test('EXAMPLE gets EX style with colon-tab', async () => {
     const { xml } = await mdToDocXml('EXAMPLE: A sample.\n')
     assert.ok(findStyles(xml).includes('EX'))
     assert.ok(findTexts(xml).some(t => t.includes('EXAMPLE:\t')))
@@ -139,22 +125,23 @@ async function run() {
 
   // ── Bullet lists ──────────────────────────────────────────────
 
-  console.log('\nbullet lists')
+})
+describe('bullet lists', () => {
 
-  await test('unordered list item gets B1 style', async () => {
+  test('unordered list item gets B1 style', async () => {
     const { xml } = await mdToDocXml('- 1> First item\n')
     assert.ok(findStyles(xml).includes('B1'))
     assert.ok(findTexts(xml).some(t => t.includes('1&gt;\t')), 'bullet should be followed by tab')
   })
 
-  await test('nested bullet gets B2 style', async () => {
+  test('nested bullet gets B2 style', async () => {
     const { xml } = await mdToDocXml('- 1> Outer\n  - 2> Inner\n')
     const styles = findStyles(xml)
     assert.ok(styles.includes('B1'))
     assert.ok(styles.includes('B2'))
   })
 
-  await test('default dash bullet is preserved', async () => {
+  test('default dash bullet is preserved', async () => {
     const { xml } = await mdToDocXml('- Plain dash item\n')
     assert.ok(findStyles(xml).includes('B1'))
     assert.ok(findTexts(xml).some(t => t.includes('-\t')))
@@ -162,15 +149,16 @@ async function run() {
 
   // ── Code blocks ───────────────────────────────────────────────
 
-  console.log('\ncode blocks')
+})
+describe('code blocks', () => {
 
-  await test('fenced code block gets PL style', async () => {
+  test('fenced code block gets PL style', async () => {
     const { xml } = await mdToDocXml('```\nsome code\n```\n')
     assert.ok(findStyles(xml).includes('PL'))
     assert.ok(findTexts(xml).some(t => t.includes('some code')))
   })
 
-  await test('fenced code block with language gets PL style', async () => {
+  test('fenced code block with language gets PL style', async () => {
     const { xml } = await mdToDocXml('```powershell\ngit status\ngit log\n```\n')
     const styles = findStyles(xml)
     const plCount = styles.filter(s => s === 'PL').length
@@ -179,7 +167,7 @@ async function run() {
     assert.ok(findTexts(xml).some(t => t.includes('git log')))
   })
 
-  await test('ASN.1 code block gets PL style with syntax coloring', async () => {
+  test('ASN.1 code block gets PL style with syntax coloring', async () => {
     const { xml } = await mdToDocXml('```asn\nMyModule DEFINITIONS ::= BEGIN\n  IMPORTS\n  ;\nEND\n```\n')
     assert.ok(findStyles(xml).includes('PL'))
     assert.ok(findTexts(xml).some(t => t.includes('MyModule')))
@@ -187,50 +175,52 @@ async function run() {
 
   // ── Tables ────────────────────────────────────────────────────
 
-  console.log('\ntables')
+})
+describe('tables', () => {
 
-  await test('table header cells get TAH style', async () => {
+  test('table header cells get TAH style', async () => {
     const { xml } = await mdToDocXml('| Col A | Col B |\n|---|---|\n| val1 | val2 |\n')
     assert.ok(findStyles(xml).includes('TAH'))
   })
 
-  await test('table body cells get TAL style by default', async () => {
+  test('table body cells get TAL style by default', async () => {
     const { xml } = await mdToDocXml('| A |\n|---|\n| value |\n')
     assert.ok(findStyles(xml).includes('TAL'))
   })
 
-  await test('right-aligned column gets TAR style', async () => {
+  test('right-aligned column gets TAR style', async () => {
     const { xml } = await mdToDocXml('| A |\n|---:|\n| 42 |\n')
     assert.ok(findStyles(xml).includes('TAR'))
   })
 
-  await test('center-aligned column gets TAC style', async () => {
+  test('center-aligned column gets TAC style', async () => {
     const { xml } = await mdToDocXml('| A |\n|:---:|\n| mid |\n')
     assert.ok(findStyles(xml).includes('TAC'))
   })
 
-  await test('NOTE inside table cell gets TAN style', async () => {
+  test('NOTE inside table cell gets TAN style', async () => {
     const { xml } = await mdToDocXml('| A | B |\n|---|---|\n| NOTE 1: A table note | val |\n')
     assert.ok(findStyles(xml).includes('TAN'))
     assert.ok(findTexts(xml).some(t => t.includes('NOTE 1:\t')), 'should replace ": " with ":\\t"')
   })
 
-  await test('NOTE: (without number) inside table gets TAN style', async () => {
+  test('NOTE: (without number) inside table gets TAN style', async () => {
     const { xml } = await mdToDocXml('| A |\n|---|\n| NOTE: Simple note |\n')
     assert.ok(findStyles(xml).includes('TAN'))
   })
 
   // ── Captions ──────────────────────────────────────────────────
 
-  console.log('\ncaptions')
+})
+describe('captions', () => {
 
-  await test('table caption gets TH style', async () => {
+  test('table caption gets TH style', async () => {
     const { xml } = await mdToDocXml('Table 1-1: My table\n\n| A |\n|---|\n| v |\n')
     assert.ok(findStyles(xml).includes('TH'))
     assert.ok(findTexts(xml).some(t => t.includes('Table 1-1:')))
   })
 
-  await test('figure caption after fence gets TF style', async () => {
+  test('figure caption after fence gets TF style', async () => {
     const { xml } = await mdToDocXml('```\ndiagram\n```\n\nFigure 1-1: My figure\n')
     assert.ok(findStyles(xml).includes('TF'))
     assert.ok(findTexts(xml).some(t => t.includes('Figure 1-1:')))
@@ -238,18 +228,20 @@ async function run() {
 
   // ── Display math ──────────────────────────────────────────────
 
-  console.log('\ndisplay math')
+})
+describe('display math', () => {
 
-  await test('display math gets EQ style', async () => {
+  test('display math gets EQ style', async () => {
     const { xml } = await mdToDocXml('$$E = mc^2$$\n')
     assert.ok(findStyles(xml).includes('EQ'))
   })
 
   // ── Multiple elements ─────────────────────────────────────────
 
-  console.log('\ncombined document')
+})
+describe('combined document', () => {
 
-  await test('full document with mixed elements produces correct styles', async () => {
+  test('full document with mixed elements produces correct styles', async () => {
     const md = [
       '# 1 Introduction',
       '',
@@ -296,55 +288,56 @@ async function run() {
 
   // ── Italic/bold text interactions ─────────────────────────────
 
-  console.log('\nitalic and bold text interactions')
+})
+describe('italic and bold text interactions', () => {
 
-  await test('NOTE with italic content gets NO style', async () => {
+  test('NOTE with italic content gets NO style', async () => {
     const { xml } = await mdToDocXml('NOTE: *italic* content\n')
     assert.ok(findStyles(xml).includes('NO'))
   })
 
-  await test('NOTE with italic content has colon-tab', async () => {
+  test('NOTE with italic content has colon-tab', async () => {
     const { xml } = await mdToDocXml('NOTE: *italic* content\n')
     assert.ok(xml.includes('NOTE:\t'), 'colon-tab should be applied before italic content')
   })
 
-  await test('NOTE with italic at end gets NO style', async () => {
+  test('NOTE with italic at end gets NO style', async () => {
     const { xml } = await mdToDocXml('NOTE: text ending in *italic*\n')
     assert.ok(findStyles(xml).includes('NO'))
     assert.ok(xml.includes('NOTE:\t'))
   })
 
-  await test('EXAMPLE with italic content gets EX style', async () => {
+  test('EXAMPLE with italic content gets EX style', async () => {
     const { xml } = await mdToDocXml('EXAMPLE: *italic* example\n')
     assert.ok(findStyles(xml).includes('EX'))
     assert.ok(xml.includes('EXAMPLE:\t'))
   })
 
-  await test('bullet with italic content after prefix gets B1 style', async () => {
+  test('bullet with italic content after prefix gets B1 style', async () => {
     const { xml } = await mdToDocXml('- 1> *italic* rest\n')
     assert.ok(findStyles(xml).includes('B1'))
     assert.ok(xml.includes('1&gt;\t'), 'bullet prefix should be followed by tab')
   })
 
-  await test('bullet starting with italic falls back to default bullet', async () => {
+  test('bullet starting with italic falls back to default bullet', async () => {
     const { xml } = await mdToDocXml('- *italic* start\n')
     assert.ok(findStyles(xml).includes('B1'))
     assert.ok(xml.includes('-\t'), 'should use default bullet with tab')
   })
 
-  await test('heading with italic content gets correct style', async () => {
+  test('heading with italic content gets correct style', async () => {
     const { xml } = await mdToDocXml('## *Italic* Heading\n')
     assert.ok(findStyles(xml).includes('Heading2'))
     assert.ok(findTexts(xml).some(t => t.includes('Italic')))
   })
 
-  await test('numbered heading with italic name gets tab after number', async () => {
+  test('numbered heading with italic name gets tab after number', async () => {
     const { xml } = await mdToDocXml('## 1.1 *Italic* Name\n')
     assert.ok(findStyles(xml).includes('Heading2'))
     assert.ok(xml.includes('1.1\t'), 'tab should follow section number')
   })
 
-  await test('NOTE inside table with italic content gets TAN style', async () => {
+  test('NOTE inside table with italic content gets TAN style', async () => {
     const { xml } = await mdToDocXml('| A |\n|---|\n| NOTE: *italic* cell |\n')
     assert.ok(findStyles(xml).includes('TAN'))
     assert.ok(xml.includes('NOTE:\t'))
@@ -352,49 +345,50 @@ async function run() {
 
   // ── Hyperlinks ────────────────────────────────────────────────
 
-  console.log('\nhyperlinks')
+})
+describe('hyperlinks', () => {
 
-  await test('external link produces w:hyperlink element', async () => {
+  test('external link produces w:hyperlink element', async () => {
     const { xml } = await mdToDocXml('See [example](https://example.com) here.\n')
     assert.ok(xml.includes('w:hyperlink'), 'should contain hyperlink element')
   })
 
-  await test('link URL appears in relationships file', async () => {
+  test('link URL appears in relationships file', async () => {
     const { zip } = await mdToDocXml('Visit [site](https://example.com).\n')
     const rels = await zip.file('word/_rels/document.xml.rels').async('string')
     assert.ok(rels.includes('example.com'), 'rels should contain the URL')
   })
 
-  await test('link text is preserved in document', async () => {
+  test('link text is preserved in document', async () => {
     const { xml } = await mdToDocXml('Click [here](https://example.com) now.\n')
     assert.ok(findTexts(xml).some(t => t.includes('here')), 'link text should be in document')
   })
 
-  await test('link run has Hyperlink character style', async () => {
+  test('link run has Hyperlink character style', async () => {
     const { xml } = await mdToDocXml('[link](https://example.com)\n')
     assert.ok(xml.includes('Hyperlink'), 'run should reference Hyperlink style')
   })
 
-  await test('Hyperlink style is defined in styles.xml', async () => {
+  test('Hyperlink style is defined in styles.xml', async () => {
     const { zip } = await mdToDocXml('[link](https://example.com)\n')
     const stylesXml = await zip.file('word/styles.xml').async('string')
     assert.ok(stylesXml.includes('Hyperlink'), 'styles.xml should define Hyperlink style')
     assert.ok(stylesXml.includes('0563C1'), 'Hyperlink style should have blue color')
   })
 
-  await test('link with bold text inside', async () => {
+  test('link with bold text inside', async () => {
     const { xml } = await mdToDocXml('See [**bold link**](https://example.com).\n')
     assert.ok(xml.includes('w:hyperlink'))
     assert.ok(findTexts(xml).some(t => t.includes('bold link')))
   })
 
-  await test('link with italic text inside', async () => {
+  test('link with italic text inside', async () => {
     const { xml } = await mdToDocXml('See [*italic link*](https://example.com).\n')
     assert.ok(xml.includes('w:hyperlink'))
     assert.ok(findTexts(xml).some(t => t.includes('italic link')))
   })
 
-  await test('multiple links in one paragraph', async () => {
+  test('multiple links in one paragraph', async () => {
     const { xml, zip } = await mdToDocXml('See [one](https://one.com) and [two](https://two.com).\n')
     const rels = await zip.file('word/_rels/document.xml.rels').async('string')
     assert.ok(rels.includes('one.com'))
@@ -403,32 +397,33 @@ async function run() {
 
   // ── ASN.1 comment bold/italic ───────────────────────────────
 
-  console.log('\nASN.1 comment formatting')
+})
+describe('ASN.1 comment formatting', () => {
 
-  await test('ASN comment with *italic* renders italic in DOCX', async () => {
+  test('ASN comment with *italic* renders italic in DOCX', async () => {
     const { xml } = await mdToDocXml('```asn\n-- This is *italic* text\n```\n')
     assert.ok(xml.includes('italic'), 'should contain italic text')
     assert.ok(xml.includes('w:i/') || xml.includes('w:i '), 'should have italic run property')
   })
 
-  await test('ASN comment with **bold** renders bold in DOCX', async () => {
+  test('ASN comment with **bold** renders bold in DOCX', async () => {
     const { xml } = await mdToDocXml('```asn\n-- This is **bold** text\n```\n')
     assert.ok(xml.includes('bold'), 'should contain bold text')
     assert.ok(xml.includes('w:b/') || xml.includes('w:b '), 'should have bold run property')
   })
 
-  await test('ASN comment with nested *italic **bold*** renders correctly', async () => {
+  test('ASN comment with nested *italic **bold*** renders correctly', async () => {
     const { xml } = await mdToDocXml('```asn\n-- *italic **nested*** end\n```\n')
     assert.ok(xml.includes('italic'), 'should contain italic text')
     assert.ok(xml.includes('nested'), 'should contain nested text')
   })
 
-  await test('ASN comment preserves green color for formatted text', async () => {
+  test('ASN comment preserves green color for formatted text', async () => {
     const { xml } = await mdToDocXml('```asn\n-- *italic* text\n```\n')
     assert.ok(xml.includes('81B16B'), 'should have green comment color')
   })
 
-  await test('ASN comment with no formatting renders plain', async () => {
+  test('ASN comment with no formatting renders plain', async () => {
     const { xml } = await mdToDocXml('```asn\n-- plain comment\n```\n')
     assert.ok(xml.includes('plain comment'), 'should contain plain text')
     assert.ok(xml.includes('81B16B'), 'should have green color')
@@ -436,9 +431,10 @@ async function run() {
 
   // updateFields option
 
-  console.log('\\nupdateFields option')
+})
+describe('\\nupdateFields option', () => {
 
-  await test('updateFields defaults to true in settings.xml', async () => {
+  test('updateFields defaults to true in settings.xml', async () => {
     const converter = new Md2Docx()
     const tmp = os.tmpdir()
     const ts = Date.now() + '_' + Math.random().toString(36).slice(2)
@@ -454,7 +450,7 @@ async function run() {
     }
   })
 
-  await test('updateFields: false omits updateFields from settings.xml', async () => {
+  test('updateFields: false omits updateFields from settings.xml', async () => {
     const converter = new Md2Docx({ updateFields: false })
     const tmp = os.tmpdir()
     const ts = Date.now() + '_' + Math.random().toString(36).slice(2)
@@ -469,9 +465,10 @@ async function run() {
     }
   })
 
-  console.log('\nfront page and CR cover page in DOCX')
+})
+describe('front page and CR cover page in DOCX', () => {
 
-  await test('convert with crCoverPageData produces CR cover page tables', async () => {
+  test('convert with crCoverPageData produces CR cover page tables', async () => {
     const docxPath = path.join(os.tmpdir(), `fp_cr_${Date.now()}.docx`)
     const crData = {
       'TDoc Number': 'R2-001', Specification: '38.331', 'Current version': '1.0.0',
@@ -495,7 +492,7 @@ async function run() {
     }
   })
 
-  await test('convert with frontPageData and no crCoverPageData uses standard front page', async () => {
+  test('convert with frontPageData and no crCoverPageData uses standard front page', async () => {
     const docxPath = path.join(os.tmpdir(), `fp_std_${Date.now()}.docx`)
     try {
       const frontPageData = { SPEC_NUMBER: '99.999', VERSION: '1.0.0', TITLE: 'Test Spec' }
@@ -512,7 +509,7 @@ async function run() {
     }
   })
 
-  await test('convert with both frontPage and crCoverPageData uses CR cover page only', async () => {
+  test('convert with both frontPage and crCoverPageData uses CR cover page only', async () => {
     const docxPath = path.join(os.tmpdir(), `fp_both_${Date.now()}.docx`)
     const crData = {
       'TDoc Number': 'R2-002', Specification: '38.331', 'Current version': '1.0.0',
@@ -538,13 +535,4 @@ async function run() {
       if (fs.existsSync(docxPath)) fs.unlinkSync(docxPath)
     }
   })
-
-  console.log(`\n${passed} passed, ${failed} failed`)
-  process.exit(failed > 0 ? 1 : 0)
-}
-
-run()
-
-
-
-
+})

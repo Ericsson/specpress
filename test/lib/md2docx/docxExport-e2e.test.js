@@ -1,3 +1,5 @@
+const { test, describe } = require('node:test')
+const { findMscgen } = require('../../../lib/md2docx/handlers/mscgenHandler')
 /**
  * End-to-end test for DOCX export (export-docx pipeline).
  *
@@ -15,21 +17,6 @@ const path = require('path')
 const os = require('os')
 const JSZip = require('jszip')
 const { Md2Docx } = require('../../../lib/md2docx/md2docx')
-
-let passed = 0
-let failed = 0
-
-async function test(name, fn) {
-  try {
-    await fn()
-    console.log(`  ✓ ${name}`)
-    passed++
-  } catch (e) {
-    console.log(`  ✗ ${name}`)
-    console.log(`    ${e.message}`)
-    failed++
-  }
-}
 
 // Minimal 1x1 red PNG for test images
 const TEST_PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==', 'base64')
@@ -105,18 +92,18 @@ function findStyles(xml) {
   return (xml.match(/w:pStyle w:val="([^"]+)"/g) || []).map(m => m.match(/"([^"]+)"/)[1])
 }
 
-async function run() {
-  console.log('DOCX export — PNG images')
+describe('DOCX export — PNG images', () => {
 
-  await test('PNG image is embedded in word/media/', async () => {
+  test('PNG image is embedded in word/media/', async () => {
     const md = '# Test\n\n![alt](assets/test.png)\n'
     const { mediaFiles } = await exportToDocx(md, { withPng: true })
     assert.ok(mediaFiles.some(f => f.endsWith('.png')), 'should have PNG in word/media/')
   })
 
-  console.log('\nDOCX export — mermaid diagrams')
+})
+describe('DOCX export — mermaid diagrams', () => {
 
-  await test('mermaid SVG is embedded with PNG fallback', async () => {
+  test('mermaid SVG is embedded with PNG fallback', async () => {
     const mockSvg = '<svg viewBox="0 0 200 100" xmlns="http://www.w3.org/2000/svg"><text>test</text></svg>'
     const mockPng = TEST_PNG
     const renderer = async (codes) => codes.map(() => ({ svg: mockSvg, png: mockPng }))
@@ -128,7 +115,7 @@ async function run() {
     assert.strictEqual(converter.imageCount, 1, 'imageCount should be 1')
   })
 
-  await test('mermaid render failure produces raw code in PL style', async () => {
+  test('mermaid render failure produces raw code in PL style', async () => {
     const renderer = async (codes) => codes.map(() => ({ svg: null, png: null }))
     const md = '# Test\n\n```mermaid\ngraph TD; BROKEN\n```\n'
     const { xml, converter } = await exportToDocx(md, { mermaidRenderer: renderer })
@@ -138,9 +125,10 @@ async function run() {
     assert.strictEqual(converter.imageCount, 0, 'imageCount should be 0')
   })
 
-  console.log('\nDOCX export — mscgen diagrams')
+})
+describe('DOCX export — mscgen diagrams', () => {
 
-  await test('mscgen SVG is embedded from cache with PNG fallback', async () => {
+  test('mscgen SVG is embedded from cache with PNG fallback', async () => {
     const { cacheKey } = require('../../../lib/common/diagramCache')
     const { loadMscgenConfig, parseMscgenPreamble, applyMscgenPreamble } = require('../../../lib/common/mscgenConfig')
     const configJson = loadMscgenConfig(null)
@@ -162,13 +150,7 @@ async function run() {
     assert.strictEqual(converter.imageCount, 1, 'imageCount should be 1')
   })
 
-  await test('mscgen renders fresh if msc-gen is available', async () => {
-    const { findMscgen } = require('../../../lib/md2docx/handlers/mscgenHandler')
-    if (!findMscgen()) {
-      console.log('    (skipped: msc-gen not installed)')
-      passed++
-      return
-    }
+  test('mscgen renders fresh if msc-gen is available', { skip: findMscgen() ? undefined : 'msc-gen not installed' }, async () => {
     const md = '# Test\n\n```mscgen\nx: X;\ny: Y;\nx->y: msg;\n```\n'
     const { mediaFiles, converter } = await exportToDocx(md)
     assert.ok(mediaFiles.some(f => f.endsWith('.svg')), 'should have rendered SVG')
@@ -176,9 +158,10 @@ async function run() {
     assert.strictEqual(converter.imageCount, 1)
   })
 
-  console.log('\nDOCX export — figure captions')
+})
+describe('DOCX export — figure captions', () => {
 
-  await test('paragraph after diagram fence gets TF style', async () => {
+  test('paragraph after diagram fence gets TF style', async () => {
     const renderer = async (codes) => codes.map(() => ({
       svg: '<svg viewBox="0 0 100 50" xmlns="http://www.w3.org/2000/svg"><text>x</text></svg>',
       png: TEST_PNG
@@ -190,9 +173,10 @@ async function run() {
     assert.ok(findStyles(xml).includes('TF'), 'should have TF style for figure caption')
   })
 
-  console.log('\nDOCX export — standard front page')
+})
+describe('DOCX export — standard front page', () => {
 
-  await test('front page is included when frontPageData is provided', async () => {
+  test('front page is included when frontPageData is provided', async () => {
     const md = '# Scope\n\nContent.\n'
     const frontPageData = { SPEC_NUMBER: '38.999', VERSION: '1.0.0', DATE: '2025-01-01', TITLE: 'Test Spec' }
     const { xml } = await exportToDocx(md, { frontPageData })
@@ -201,7 +185,7 @@ async function run() {
     assert.ok(texts.some(t => t.includes('Content')), 'should contain body content')
   })
 
-  await test('no front page when frontPageData is null', async () => {
+  test('no front page when frontPageData is null', async () => {
     const md = '# Scope\n\nContent.\n'
     const { xml } = await exportToDocx(md)
     const texts = findTexts(xml)
@@ -209,9 +193,10 @@ async function run() {
     assert.ok(texts.some(t => t.includes('Content')), 'should contain body content')
   })
 
-  console.log('\nDOCX export — CR cover page')
+})
+describe('DOCX export — CR cover page', () => {
 
-  await test('CR cover page is included when crCoverPageData is provided', async () => {
+  test('CR cover page is included when crCoverPageData is provided', async () => {
     const md = '# Scope\n\nContent.\n'
     const crData = {
       TDoc: 'R2-1234567', CR: 42, Rev: 1, 'Current version': '17.5.0',
@@ -224,7 +209,7 @@ async function run() {
     assert.ok(texts.some(t => t.includes('Test CR')), 'should contain CR title')
   })
 
-  await test('CR cover page takes precedence over front page', async () => {
+  test('CR cover page takes precedence over front page', async () => {
     const md = '# Scope\n\nContent.\n'
     const frontPageData = { SPEC_NUMBER: '38.999', VERSION: '1.0.0' }
     const crData = {
@@ -238,9 +223,10 @@ async function run() {
     assert.ok(!texts.some(t => t.includes('38.999')), 'front page should NOT be present')
   })
 
-  console.log('\nDOCX export — mixed content')
+})
+describe('DOCX export — mixed content', () => {
 
-  await test('full document with PNG, mermaid, caption, and front page', async () => {
+  test('full document with PNG, mermaid, caption, and front page', async () => {
     const renderer = async (codes) => codes.map(() => ({
       svg: '<svg viewBox="0 0 200 100" xmlns="http://www.w3.org/2000/svg"><text>diagram</text></svg>',
       png: TEST_PNG
@@ -288,8 +274,5 @@ async function run() {
     assert.strictEqual(converter.imageCount, 2, 'should count photo + diagram = 2 images')
   })
 
-  console.log(`\n${passed} passed, ${failed} failed`)
-  if (failed > 0) process.exit(1)
-}
 
-run()
+})
