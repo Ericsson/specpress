@@ -25,10 +25,20 @@ SpecPress includes command-line scripts for converting a set of files and/or fol
 ### Export to HTML
 
 ```bash
-node node_modules/specpress/lib/cli/export-html.js <inputDir> <outputDir> [--css <file>] [--mermaid-config <file>]
+node node_modules/specpress/lib/cli/export-html.js <inputDir> <outputDir> [--css <file>] [--mermaid-config <file>] [--mscgen-config <file>] [--spec-root <dir>]
 ```
 
 This collects all `.md`, `.markdown`, and `.asn` files from `<inputDir>` (recursively), converts them to a single HTML file at `<outputDir>/index.html`, and copies referenced images into a `media/` subdirectory.
+
+### Export to HTML DIFF
+
+```bash
+node node_modules/specpress/lib/cli/export-html-diff.js <inputPaths...> --output <file> \
+  --base <commit> --revision <commit> \
+  [--spec-root <dir>] [--css <file>] [--mermaid-config <file>] [--mscgen-config <file>]
+```
+
+Generates a tracked-changes HTML file comparing two git versions. Use `local` as a commit identifier to compare against the current working copy. Images are copied to a `media/` directory next to the output file.
 
 ### Export to DOCX
 
@@ -42,8 +52,9 @@ Options:
 
 - `--spec-root <dir>` — Specification root for section numbering. Enables x-placeholder resolution. Omit to disable section numbering.
 - `--mermaid-config <file>` — Path to a mermaid configuration JSON file. Falls back to the built-in default.
+- `--mscgen-config <file>` — Path to an MSC-Gen configuration JSON file. Falls back to the built-in default.
 
-Mermaid rendering requires Chrome or Edge to be installed on the system.
+Mermaid rendering requires Chrome or Edge to be installed on the system. MSC-Gen rendering requires the [msc-generator](https://gitlab.com/msc-generator/msc-generator) CLI tool.
 
 ### Validate Band Combination Data
 
@@ -124,6 +135,7 @@ The markdown-to-HTML/DOCX conversion goes beyond regular markdown rendering. The
 - An unordered **bullet list** in markdown is converted into a Bx-Style list in HTML and DOCX. I.e., it is assumed that the first "word" in the bullet text is the "bullet character". The script extracts those one or more first characters and declares them accordingly in the corresponding "\<li\>" statements in the generated HTML. Furthermore, the CSS for the corresponding _li_/_ul_ styles is adjusted so that bullet lists are indented properly. This scheme allows using various bullets styles (e.g. -, 1>, 2>, [1], [2], ...) as it used to be done with the traditional B1, B2, B3... styles in DOCX.
 - **Images** are embedded in DOCX with their native aspect ratio preserved. Large images are scaled to fit the page width; small images are not upscaled beyond 125 DPI to avoid pixelation.
 - A fenced code-block with the content **mermaid** is interpreted as a graph and rendered as a figure.
+- A fenced code-block with the content **mscgen** is interpreted as an MSC-Gen diagram (sequence, block, or graph) and rendered as a figure. The diagram type is auto-detected from the content or set explicitly with an `@type=` directive (`signalling`, `block`, `graph`). Requires the [msc-generator](https://gitlab.com/msc-generator/msc-generator) CLI tool.
 - **JsonTable** is a table format where columns and rows are defined in JSON (in separate JSON files linked into MD files or embedded directly into a MD code fence). The JsonTable supports markdown formatting in cells (including equations, line-breaks, ...) as well as horizontally and vertically merged cells.
 - **Equations** in LaTeX format are rendered in the HTML preview and embedded as native equations in an exported DOCX file.
 - **ASN.1 files** (`.asn`) are automatically included when collecting files from a folder. In multi-file mode, SpecPress extracts leading comments and the module name to generate a section heading and descriptive paragraph before the ASN.1 code block.
@@ -199,39 +211,45 @@ The `x.x` part is replaced by the section number of the most recent resolved hea
 
 When a folder does not have a `00`-prefixed file to provide its heading, SpecPress automatically generates a heading title from the folder name. These auto-generated headings are marked with `<!-- AUTO-HEADING -->` comments internally and are not flagged as errors.
 
-### Mermaid Diagram Caching
+### Diagram Caching (Mermaid and MSC-Gen)
 
-Mermaid diagrams embedded in markdown code fences are rendered to SVG and cached on disk for fast re-exports and stable DOCX diffs.
+Mermaid and MSC-Gen diagrams are rendered to SVG and PNG and cached on disk for fast re-exports and stable DOCX diffs.
 
-#### SVG cache location
+#### Cache location
 
-Rendered SVG files are stored in a `cached/` directory as a sibling of the specification root folder:
+Rendered files are stored in a `cached/` directory as a sibling of the specification root folder:
 
 ```txt
 repo/
   spec/           ← specificationRootPath
     03 Building blocks/
-      05 Mermaid.md
-  cached/          ← SVG cache (sibling of spec)
+      05 Diagrams.md
+  cached/          ← diagram cache (sibling of spec)
     a1b2c3d4...svg
+    a1b2c3d4...png
     e5f6a7b8...svg
+    e5f6a7b8...png
 ```
+
+Both SVG and 2× resolution PNG files are cached for each diagram.
 
 #### Cache key
 
-Each SVG file is named by the SHA-256 hash of the mermaid source code combined with the mermaid configuration. This means:
+Each file is named by the SHA-256 hash of the diagram source code combined with the configuration. This means:
 
-- **Same source → same file** — unchanged diagrams produce identical SVG bytes across exports, eliminating false tracked changes in DOCX DIFF comparisons.
+- **Same source → same file** — unchanged diagrams produce identical bytes across exports, eliminating false tracked changes in DOCX DIFF comparisons.
 - **Fast re-exports** — cached diagrams are served from disk without re-rendering.
-- **Shareable via git** — the `cached/` directory should be committed to the repository. Colleagues who clone the repo get the pre-rendered SVGs and don't need to re-render them.
+- **Shareable via git** — the `cached/` directory should be committed to the repository. Colleagues who clone the repo get the pre-rendered diagrams and don't need to re-render them.
 
 #### Automatic cleanup
 
-After each export, SpecPress scans all markdown files in the spec root for mermaid fences and deletes any cached SVGs that are no longer referenced.
+After each local export, SpecPress scans all markdown files in the spec root for mermaid and mscgen fences and deletes any cached files that are no longer referenced. Cleanup is skipped when exporting from a git commit.
 
 #### Standalone rendering
 
 When running from the command line (outside VS Code), mermaid diagrams are rendered using a headless Chromium-based browser (Edge or Chrome). SpecPress auto-detects the browser from common installation paths. If no browser is found, mermaid diagrams are skipped and a placeholder is inserted.
+
+MSC-Gen diagrams are rendered using the `msc-gen` CLI tool from [msc-generator](https://gitlab.com/msc-generator/msc-generator). SpecPress auto-detects it from common installation paths. If not found, MSC-Gen diagrams are skipped.
 
 ## Contributing
 
@@ -239,7 +257,7 @@ When running from the command line (outside VS Code), mermaid diagrams are rende
 
 The `lib/` directory is organized by concern:
 
-- **`common/`** — Shared utilities (paragraph classification, section numbering, file collection, bullet parsing, git helpers). No dependency on markdown-it or docx.
+- **`common/`** — Shared utilities (paragraph classification, section numbering, file collection, bullet parsing, git helpers, `FileResolver`, diagram caching and rendering). No dependency on markdown-it or docx.
 - **`md2html/`** — HTML renderer built on markdown-it. `md2html.js` is the main class; `handlers/` contains format-specific logic (ASN.1 highlighting, JsonTable).
 - **`md2docx/`** — DOCX converter built on the docx library. `md2docx.js` walks markdown-it tokens and emits docx elements; `handlers/` contains specialized converters (equations, mermaid, JsonTable, ASN.1); `styles/` defines 3GPP paragraph styles.
 - **`cli/`** — Thin command-line wrappers around the library classes.
@@ -254,6 +272,7 @@ Key principles:
 - **No VS Code dependency** — the entire `lib/` directory must run in plain Node.js (CLI, CI, tests). VS Code integration lives exclusively in the [SpecPressExt](https://github.com/Ericsson/SpecPressExt) repository.
 - **Shared classification** — paragraph type detection (`classifyParagraph`) is defined once in `common/specProcessor.js` and used by both HTML and DOCX paths, ensuring consistent behavior.
 - **Injected dependencies** — renderers, image resolvers, and mermaid render functions are passed in via constructor options or function parameters, never hardcoded.
+- **`FileResolver`** — all file access (local or from a git commit) goes through `common/fileResolver.js`. This eliminates ad-hoc `getFileFromCommit` calls scattered across the codebase and makes git-sourced image resolution consistent between HTML and DOCX paths.
 
 ### Coding style
 
@@ -270,6 +289,8 @@ Key principles:
 - Adding VS Code or editor-specific code to `lib/` — that belongs in SpecPressExt
 - Hardcoded path separators — use `path.join()`
 - Synchronous file I/O in async code paths (mermaid rendering, DOCX export) — use async where the caller expects it
+- Duplicating diagram render/cache logic between HTML and DOCX paths — use `common/diagramRenderers.js`
+- Bypassing `FileResolver` for git-commit file access — always use `createCommitResolver()` / `createLocalResolver()`
 
 ## Local 3GPP Specifications Development Tools
 

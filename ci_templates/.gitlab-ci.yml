@@ -7,13 +7,13 @@
 #                  (zero-padded CR number) and pushes the commit back to the
 #                  branch. Requires CI_PUSH_TOKEN to be set in CI/CD variables.
 #
-#   export-docx  — Runs on every push to any branch, after finalize-cr.
+#   export-document — Runs on every push to any branch, after finalize-cr.
 #                  On main/Rel-* branches this means it sees the renamed
 #                  CR####.json (no CRxxxx.json), so it produces a normal DOCX
-#                  export instead of a DOCX DIFF.
-#                  On feature branches it generates a DOCX DIFF if CRxxxx.json
-#                  exists, otherwise a normal DOCX export.
-#                  Artifact is retained for 30 days.
+#                  and HTML export instead of a DIFF.
+#                  On feature branches it generates a DOCX DIFF and HTML DIFF
+#                  if CRxxxx.json exists, otherwise a normal DOCX and HTML export.
+#                  Artifacts (DOCX + HTML + media) are retained for 30 days.
 #
 #   validate-cr  — Runs on merge requests targeting "main" or "Rel-*" branches.
 #                  Blocks the merge if CR metadata is missing, invalid, or
@@ -30,7 +30,7 @@ variables:
   # CI_PUSH_TOKEN: set in CI/CD variables (masked, protected) — required for finalize-cr
   SPECPRESS_REPO: "https://github.com/Ericsson/specpress.git"
   SPECPRESS_REF: "main"
-  # Docker image for the export-docx job. The default node:20 image does not
+  # Docker image for the export-document job. The default node:20 image does not
   # include Msc-generator. To enable MSC-Gen diagram rendering in CI, build a
   # custom image that includes msc-gen and set this variable to its registry path.
   # See ci_templates/Dockerfile.specpress for an example.
@@ -101,9 +101,17 @@ finalize-cr:
     - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_REF_NAME =~ /^Rel-\d+$/
 
 # -----------------------------------------------------------------------------
-# export-docx: build a DOCX on every push
+# export: build DOCX and HTML on every push
+#
+# On CR branches (CRxxxx.json exists): generates a DOCX DIFF and an HTML DIFF
+# against the merge-base of the target release branch.
+# On regular branches: generates a plain DOCX and plain HTML export.
+#
+# Artifacts include both output/*.docx and output/*.html + output/media/.
+# The HTML artifact is exposed as a browsable link on the MR/pipeline page
+# via "expose_as".
 # -----------------------------------------------------------------------------
-export-docx:
+export:
   stage: build
   image: $DOCX_IMAGE
   before_script:
@@ -121,7 +129,6 @@ export-docx:
       CR_FILE="${SPEC_ROOT}/history/CRxxxx.json"
       if [ -f "$CR_FILE" ]; then
         echo "=== CR branch detected (${CR_FILE} exists) ==="
-        echo "Generating DOCX DIFF with CR cover page..."
 
         RELEASE=$(jq -r '.Release // empty' "$CR_FILE" 2>/dev/null)
         if [ -n "$RELEASE" ]; then
@@ -142,7 +149,9 @@ export-docx:
         echo "Target branch: ${TARGET_BRANCH}, Merge-base: ${BASE_COMMIT}"
 
         DOCX_FILE="output/${COMMIT_DATE}_${SPEC_NUMBER}_DIFF_${BRANCH_NAME}_${SHORT_SHA}.docx"
+        HTML_FILE="output/${COMMIT_DATE}_${SPEC_NUMBER}_DIFF_${BRANCH_NAME}_${SHORT_SHA}.html"
 
+        echo "--- Generating DOCX DIFF ---"
         node /tmp/specpress/lib/cli/export-docx-diff.js \
           "$SPEC_ROOT" \
           --output "$DOCX_FILE" \
@@ -151,22 +160,44 @@ export-docx:
           --backend libreoffice \
           --spec-root "$SPEC_ROOT" \
           --cr-cover-page-data "$CR_FILE"
+
+        echo "--- Generating HTML DIFF ---"
+        node /tmp/specpress/lib/cli/export-html-diff.js \
+          "$SPEC_ROOT" \
+          --output "$HTML_FILE" \
+          --base "$BASE_COMMIT" \
+          --revision HEAD \
+          --spec-root "$SPEC_ROOT" \
+          --cr-cover-page-data "$CR_FILE"
       else
-        echo "=== No CRxxxx.json found — normal DOCX export ==="
+        echo "=== No CRxxxx.json found — normal export ==="
 
         DOCX_FILE="output/${COMMIT_DATE}_${SPEC_NUMBER}_${BRANCH_NAME}_${SHORT_SHA}.docx"
+        HTML_FILE="output/${COMMIT_DATE}_${SPEC_NUMBER}_${BRANCH_NAME}_${SHORT_SHA}.html"
 
+        echo "--- Generating DOCX ---"
         node /tmp/specpress/lib/cli/export-docx.js \
           "$SPEC_ROOT" \
           "$DOCX_FILE" \
           --spec-root "$SPEC_ROOT" \
           ${FRONT_PAGE_DATA:+--front-page-data "$FRONT_PAGE_DATA"}
+
+        echo "--- Generating HTML ---"
+        node /tmp/specpress/lib/cli/export-html.js \
+          "$SPEC_ROOT" \
+          "$HTML_FILE" \
+          --spec-root "$SPEC_ROOT" \
+          ${FRONT_PAGE_DATA:+--front-page-data "$FRONT_PAGE_DATA"}
       fi
 
-      echo "Output: $DOCX_FILE"
+      echo "DOCX: $DOCX_FILE"
+      echo "HTML: $HTML_FILE"
   artifacts:
+    expose_as: 'Rendered HTML'
     paths:
       - output/*.docx
+      - output/*.html
+      - output/media/
     expire_in: 30 days
 
 # -----------------------------------------------------------------------------
