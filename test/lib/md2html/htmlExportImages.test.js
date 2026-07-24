@@ -34,6 +34,9 @@ function exportSpec(mdContent, opts = {}) {
     fs.mkdirSync(cacheDir, { recursive: true })
     for (const [filename, content] of Object.entries(opts.cachedSvgs)) {
       fs.writeFileSync(path.join(cacheDir, filename), content)
+      // Also write a dummy PNG so the cache considers the entry complete
+      const pngName = filename.replace(/\.svg$/, '.png')
+      fs.writeFileSync(path.join(cacheDir, pngName), Buffer.from('png'))
     }
   }
 

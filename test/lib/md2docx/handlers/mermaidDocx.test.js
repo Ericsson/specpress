@@ -151,6 +151,8 @@ describe('mermaid DOCX embedding', () => {
 })
 describe('mermaid SVG caching', () => {
 
+  const MOCK_PNG = Buffer.from('png')
+
   function makeSpecRoot(mermaidCodes) {
     const root = path.join(os.tmpdir(), `.~mermaid_repo_${Date.now()}_${Math.random().toString(36).slice(2)}`)
     const specRoot = path.join(root, 'spec')
@@ -164,7 +166,7 @@ describe('mermaid SVG caching', () => {
     const code = 'graph TD; A-->B'
     const specRoot = makeSpecRoot([code])
     let renderCalled = false
-    const renderFn = async (codes) => { renderCalled = true; return codes.map(() => ({ svg: MOCK_SVG, png: null })) }
+    const renderFn = async (codes) => { renderCalled = true; return codes.map(() => ({ svg: MOCK_SVG, png: MOCK_PNG })) }
     const results = await renderMermaidCached([code], '{}', specRoot, renderFn)
     assert.ok(renderCalled, 'renderFn should be called')
     assert.strictEqual(results.length, 1)
@@ -175,10 +177,10 @@ describe('mermaid SVG caching', () => {
   test('renderMermaidCached serves cached SVG without calling renderFn', async () => {
     const code = 'graph TD; X-->Y'
     const specRoot = makeSpecRoot([code])
-    const renderFn = async (codes) => codes.map(() => ({ svg: MOCK_SVG, png: null }))
+    const renderFn = async (codes) => codes.map(() => ({ svg: MOCK_SVG, png: MOCK_PNG }))
     await renderMermaidCached([code], '{}', specRoot, renderFn)
     let calledAgain = false
-    const renderFn2 = async (codes) => { calledAgain = true; return codes.map(() => ({ svg: '<svg>new</svg>', png: null })) }
+    const renderFn2 = async (codes) => { calledAgain = true; return codes.map(() => ({ svg: '<svg>new</svg>', png: MOCK_PNG })) }
     const results = await renderMermaidCached([code], '{}', specRoot, renderFn2)
     assert.ok(!calledAgain, 'renderFn should not be called for cached diagram')
     assert.ok(results[0].svg.includes('<text>mock</text>'), 'should return original cached SVG')
@@ -187,7 +189,7 @@ describe('mermaid SVG caching', () => {
 
   test('renderMermaidCached re-renders when source changes', async () => {
     const specRoot = makeSpecRoot(['graph TD; A-->C'])
-    const renderFn = async (codes) => codes.map(c => ({ svg: `<svg>${c}</svg>`, png: null }))
+    const renderFn = async (codes) => codes.map(c => ({ svg: `<svg>${c}</svg>`, png: MOCK_PNG }))
     await renderMermaidCached(['graph TD; A-->B'], '{}', specRoot, renderFn)
     const results = await renderMermaidCached(['graph TD; A-->C'], '{}', specRoot, renderFn)
     assert.ok(results[0].svg.includes('A-->C'), 'should render the new diagram')
@@ -198,7 +200,7 @@ describe('mermaid SVG caching', () => {
     const code1 = 'graph TD; Keep-->This'
     const code2 = 'graph TD; Remove-->This'
     const specRoot = makeSpecRoot([code1, code2])
-    const renderFn = async (codes) => codes.map(c => ({ svg: `<svg>${c}</svg>`, png: null }))
+    const renderFn = async (codes) => codes.map(c => ({ svg: `<svg>${c}</svg>`, png: MOCK_PNG }))
     await renderMermaidCached([code1, code2], '{}', specRoot, renderFn)
     const cacheDir = path.join(specRoot, '..', 'cached')
     assert.strictEqual(fs.readdirSync(cacheDir).filter(f => f.endsWith('.svg')).length, 2, 'should have 2 cached SVGs')
@@ -215,7 +217,7 @@ describe('mermaid SVG caching', () => {
     const codes = ['graph TD; A-->B', 'graph TD; C-->D', 'graph TD; E-->F']
     const specRoot = makeSpecRoot(codes)
     let callCount = 0
-    const renderFn = async (c) => { callCount++; return c.map(x => ({ svg: `<svg>${x}</svg>`, png: null })) }
+    const renderFn = async (c) => { callCount++; return c.map(x => ({ svg: `<svg>${x}</svg>`, png: MOCK_PNG })) }
     const results = await renderMermaidCached(codes, '{}', specRoot, renderFn)
     assert.strictEqual(callCount, 1, 'renderFn should be called once for all uncached')
     assert.strictEqual(results.length, 3)
@@ -228,11 +230,11 @@ describe('mermaid SVG caching', () => {
     const code1 = 'graph TD; Cached-->One'
     const code2 = 'graph TD; New-->Two'
     const specRoot = makeSpecRoot([code1, code2])
-    const renderFn = async (codes) => codes.map(c => ({ svg: `<svg>${c}</svg>`, png: null }))
+    const renderFn = async (codes) => codes.map(c => ({ svg: `<svg>${c}</svg>`, png: MOCK_PNG }))
     // Pre-cache code1 only
     await renderMermaidCached([code1], '{}', specRoot, renderFn)
     let renderedCodes = null
-    const renderFn2 = async (codes) => { renderedCodes = codes; return codes.map(c => ({ svg: `<svg>${c}</svg>`, png: null })) }
+    const renderFn2 = async (codes) => { renderedCodes = codes; return codes.map(c => ({ svg: `<svg>${c}</svg>`, png: MOCK_PNG })) }
     const results = await renderMermaidCached([code1, code2], '{}', specRoot, renderFn2)
     assert.ok(renderedCodes, 'renderFn should be called for uncached')
     assert.strictEqual(renderedCodes.length, 1, 'only uncached code should be rendered')

@@ -365,6 +365,8 @@ describe('renderMscgenBatch', () => {
 })
 describe('renderMscgenCached', () => {
 
+  const MOCK_PNG = Buffer.from('png')
+
   test('calls renderFn for uncached diagrams', async () => {
     const tempDir = path.join(os.tmpdir(), `mscgen-cache-test-${Date.now()}`)
     fs.mkdirSync(path.join(tempDir, 'spec'), { recursive: true })
@@ -411,6 +413,7 @@ describe('renderMscgenCached', () => {
       const code = 'u: UE;'
       const key = mscgenCacheKey(code, '{}')
       fs.writeFileSync(path.join(cacheDir, `${key}.svg`), '<svg>cached</svg>')
+      fs.writeFileSync(path.join(cacheDir, `${key}.png`), MOCK_PNG)
 
       let renderCalled = false
       const mockRender = () => { renderCalled = true; return [] }
@@ -446,8 +449,11 @@ describe('renderMscgenCached', () => {
       const keyB = mscgenCacheKey(codeB, cfgB)
       const keyG = mscgenCacheKey(codeG, cfgG)
       fs.writeFileSync(path.join(cacheDir, `${keyS}.svg`), '<svg>signalling</svg>')
+      fs.writeFileSync(path.join(cacheDir, `${keyS}.png`), MOCK_PNG)
       fs.writeFileSync(path.join(cacheDir, `${keyB}.svg`), '<svg>block</svg>')
+      fs.writeFileSync(path.join(cacheDir, `${keyB}.png`), MOCK_PNG)
       fs.writeFileSync(path.join(cacheDir, `${keyG}.svg`), '<svg>graph</svg>')
+      fs.writeFileSync(path.join(cacheDir, `${keyG}.png`), MOCK_PNG)
 
       const [sigResult] = await renderMscgenCached([codeS], cfgS, specRoot, () => [])
       const [blkResult] = await renderMscgenCached([codeB], cfgB, specRoot, () => [])
