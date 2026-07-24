@@ -115,7 +115,7 @@ export:
   stage: build
   image: $DOCX_IMAGE
   before_script:
-    - apt-get update && apt-get install -y --no-install-recommends git libreoffice-writer python3-uno chromium jq
+    - apt-get update && apt-get install -y --no-install-recommends git libreoffice-writer python3-uno chromium msc-generator jq
     - export CHROME_BIN=$(which chromium)
     - export MSCGEN_BIN=$(which msc-gen 2>/dev/null || echo "")
   script:
