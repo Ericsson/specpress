@@ -5,7 +5,21 @@ All notable changes to the SpecPress library will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [3.3.4] - 2026-07-22
+## [3.4.4] - 2026-07-27
+
+### Added
+
+- **Explicit image width** — Images can now be sized explicitly using the `=WxH` syntax after the image URL (provided by `markdown-it-imsize`):
+  - `![alt](image.png =300x)` — display at 300 pixels wide, height auto-calculated from aspect ratio
+  - `![alt](image.png =50%x)` — display at 50% of the page/body width
+  - Respected in both HTML preview/export and DOCX export. The automatic `scaleToFit` logic remains the fallback when no explicit size is given.
+
+### Changed
+
+- **Image scaling refactored** — `getImageDimensions` and `scaleToFit` moved from `md2docx/md2docx.js` to `common/imageUtils.js` for shared use by both HTML and DOCX paths.
+- **CSS `img` rule** — Changed from `width: 80%` to `max-width: 100%` so that explicitly sized images are rendered at their specified width rather than being overridden by the stylesheet.
+
+## [3.4.0] - 2026-07-22
 
 ### Added
 
@@ -215,7 +229,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Complete rewrite from original internal tool
 - Modular architecture with separate HTML and DOCX paths
 
-[3.3.4]: https://github.com/Ericsson/specpress/compare/v3.2.6...v3.3.4
+[3.4.4]: https://github.com/Ericsson/specpress/compare/v3.4.0...3.4.4
+[3.4.0]: https://github.com/Ericsson/specpress/compare/v3.2.6...v3.4.0
 [3.2.6]: https://github.com/Ericsson/specpress/compare/v3.2.4...v3.2.6
 [3.2.4]: https://github.com/Ericsson/specpress/compare/v3.2.3...v3.2.4
 [3.2.3]: https://github.com/Ericsson/specpress/releases/tag/v3.2.3

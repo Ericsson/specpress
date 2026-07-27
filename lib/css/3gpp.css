@@ -135,7 +135,7 @@ strong {
 }
 
 img {
-  width: 80%;
+  max-width: 100%;
   display: block;
   padding: 0;
   margin-left: auto;

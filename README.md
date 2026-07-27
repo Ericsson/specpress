@@ -133,7 +133,11 @@ The markdown-to-HTML/DOCX conversion goes beyond regular markdown rendering. The
 - Semi-automated **section numbering** based on leading numbers in folder- and file names. See [Section Numbering](#section-numbering) for a detailed description.
 - A level-1 heading starting with "**Annex**" is treated as an Annex heading with a line break after the first colon (Heading8 style in DOCX).
 - An unordered **bullet list** in markdown is converted into a Bx-Style list in HTML and DOCX. I.e., it is assumed that the first "word" in the bullet text is the "bullet character". The script extracts those one or more first characters and declares them accordingly in the corresponding "\<li\>" statements in the generated HTML. Furthermore, the CSS for the corresponding _li_/_ul_ styles is adjusted so that bullet lists are indented properly. This scheme allows using various bullets styles (e.g. -, 1>, 2>, [1], [2], ...) as it used to be done with the traditional B1, B2, B3... styles in DOCX.
-- **Images** are embedded in DOCX with their native aspect ratio preserved. Large images are scaled to fit the page width; small images are not upscaled beyond 125 DPI to avoid pixelation.
+- **Images** are embedded in DOCX with their native aspect ratio preserved. Large images are scaled to fit the page width; small images are not upscaled beyond 125 DPI to avoid pixelation. An explicit display width can be specified using the `=WxH` syntax after the image URL:
+  - `![alt](image.png =300x)` — display at 300 pixels wide (height auto-calculated)
+  - `![alt](image.png =50%x)` — display at 50% of the page/body width
+  - When no explicit size is given, the automatic scaling applies as the fallback.
+  - The explicit width is respected in both HTML preview/export and DOCX export.
 - A fenced code-block with the content **mermaid** is interpreted as a graph and rendered as a figure.
 - A fenced code-block with the content **mscgen** is interpreted as an MSC-Gen diagram (sequence, block, or graph) and rendered as a figure. The diagram type is auto-detected from the content or set explicitly with an `@type=` directive (`signalling`, `block`, `graph`). Requires the [msc-generator](https://gitlab.com/msc-generator/msc-generator) CLI tool.
 - **JsonTable** is a table format where columns and rows are defined in JSON (in separate JSON files linked into MD files or embedded directly into a MD code fence). The JsonTable supports markdown formatting in cells (including equations, line-breaks, ...) as well as horizontally and vertically merged cells.
