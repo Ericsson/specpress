@@ -5,6 +5,12 @@ All notable changes to the SpecPress library will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.4.5] - 2026-07-27
+
+### Fixed
+
+- **Mermaid test skip** - If bundle cannot be downloaded, skip the test.
+
 ## [3.4.4] - 2026-07-27
 
 ### Added

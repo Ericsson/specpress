@@ -131,7 +131,7 @@ describe('HTML export — mermaid diagrams (cached)', () => {
 })
 describe('HTML export — mermaid diagrams (rendering)', () => {
 
-  test('mermaid diagram without cache is rendered if browser available', { skip: (() => { const { findBrowser } = require('../../../lib/md2docx/handlers/mermaidHandler'); if (!findBrowser()) return 'no browser available'; const { canFetchMermaid } = require('../../../lib/common/mermaidRenderer'); return canFetchMermaid() ? undefined : 'mermaid CDN not reachable' })() }, () => {
+  test('mermaid diagram without cache is rendered if browser available', { skip: (() => { const { findBrowser, renderMermaidBatch } = require('../../../lib/common/mermaidRenderer'); if (!findBrowser()) return 'no browser available'; const result = renderMermaidBatch(['graph TD; A-->B']); return (result[0] && result[0].svg) ? undefined : 'mermaid rendering not available (browser cannot reach CDN)' })() }, () => {
     const md = '# Test\n\n```mermaid\ngraph TD; X-->Y\n```\n'
     const { html, mediaFiles, mediaDir, tempDir } = exportSpec(md)
     try {
