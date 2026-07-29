@@ -53,15 +53,19 @@ const result = spawnSync(
   { encoding: 'utf8', cwd: repoRoot, stdio: 'inherit', shell: true }
 )
 
-// Run e2e/integration tests individually
+// Run e2e/integration tests individually — only if unit tests passed
 let e2eExitCode = 0
-for (const file of e2eTests) {
-  const rel = path.relative(testDir, file).replace(/\\/g, '/')
-  console.log(`\n── ${rel} ──\n`)
-  const r = spawnSync(process.execPath, [file], {
-    encoding: 'utf8', cwd: path.dirname(file), stdio: 'inherit'
-  })
-  if (r.status !== 0) e2eExitCode = 1
+if (result.status === 0) {
+  for (const file of e2eTests) {
+    const rel = path.relative(testDir, file).replace(/\\/g, '/')
+    console.log(`\n── ${rel} ──\n`)
+    const r = spawnSync(process.execPath, [file], {
+      encoding: 'utf8', cwd: path.dirname(file), stdio: 'inherit'
+    })
+    if (r.status !== 0) e2eExitCode = 1
+  }
+} else {
+  if (e2eTests.length > 0) console.log('\nSkipping e2e tests because unit tests failed.\n')
 }
 
 process.exit((result.status || 0) + e2eExitCode > 0 ? 1 : 0)
