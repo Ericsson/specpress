@@ -19,17 +19,40 @@
 #                  Blocks the merge if CR metadata is missing, invalid, or
 #                  conflicts with an existing CR number.
 #
+#   release      — Runs when a version tag (e.g. 20.3.0) is pushed. Creates a
+#                  GitLab Release with direct download links for the HTML and
+#                  DOCX artifacts on the Releases page.
+#
 # Copy this file to the top level of your specification repository and rename
 # it to ".gitlab-ci.yml". Configure the variables below as needed.
 
 variables:
-  SPEC_ROOT: "specification"        # path to the specification root folder, relative to repo root
-  SPEC_NUMBER: "38XXX"              # specification number (e.g., "38413")
-  FRONT_PAGE_DATA: ""               # path to front page JSON (optional, for non-CR exports)
-  CI_PUSH_USER: "oauth2"            # username for CI push (finalize-cr job)
-  # CI_PUSH_TOKEN: set in CI/CD variables (masked, protected) — required for finalize-cr
+  # path to the specification root folder, relative to repo root:
+  SPEC_ROOT: "specification"
+
+  # specification number (e.g., "38.413"):
+  SPEC_NUMBER: "TR 38.xxx"
+
+  # path to front page meta data in JSON format (optional):
+  FRONT_PAGE_DATA: "specification/assets/specFrontPage.json"
+
+  # username for CI push (finalize-cr job). Default value should be OK!
+  CI_PUSH_USER: "oauth2"
+
+  # CI_PUSH_TOKEN is required for finalize-cr.
+  #   To generate: Settings > Access Tokens > Add new token,
+  #     select scope "write_repository", copy the value.
+  #   Then store it via Settings > CI/CD > Variables > CI/CD Variables > Add variable
+  #     paste the key into the value field
+  #     set Key=CI_PUSH_TOKEN, and
+  #     enable "Masked and hidden" and "Protected".
+
+  # Repository and branch from which the CI pipeline shall download the
+  # specpress library for rendering HTML- and DOCX versions upon commits.
+  # Default values should be OK!
   SPECPRESS_REPO: "https://github.com/Ericsson/specpress.git"
   SPECPRESS_REF: "main"
+
   # Docker image for the export-document job. The default node:20 image does not
   # include Msc-generator. To enable MSC-Gen diagram rendering in CI, build a
   # custom image that includes msc-gen and set this variable to its registry path.
@@ -40,6 +63,7 @@ stages:
   - finalize
   - build
   - validate
+  - deploy
 
 # -----------------------------------------------------------------------------
 # finalize-cr: rename CRxxxx.json → CR####.json after merge
@@ -148,13 +172,13 @@ export:
         BASE_COMMIT=$(git merge-base HEAD "origin/$TARGET_BRANCH")
         echo "Target branch: ${TARGET_BRANCH}, Merge-base: ${BASE_COMMIT}"
 
-        DOCX_FILE="output/${COMMIT_DATE}_${SPEC_NUMBER}_DIFF_${BRANCH_NAME}_${SHORT_SHA}.docx"
-        HTML_FILE="output/${COMMIT_DATE}_${SPEC_NUMBER}_DIFF_${BRANCH_NAME}_${SHORT_SHA}.html"
+        DOCX_LABEL="${COMMIT_DATE}_${SPEC_NUMBER}_DIFF_${BRANCH_NAME}_${SHORT_SHA}.docx"
+        HTML_LABEL="${COMMIT_DATE}_${SPEC_NUMBER}_DIFF_${BRANCH_NAME}_${SHORT_SHA}.html"
 
         echo "--- Generating DOCX DIFF ---"
         node /tmp/specpress/lib/cli/export-docx-diff.js \
           "$SPEC_ROOT" \
-          --output "$DOCX_FILE" \
+          --output "output/export.docx" \
           --base "$BASE_COMMIT" \
           --revisions HEAD \
           --backend libreoffice \
@@ -164,7 +188,7 @@ export:
         echo "--- Generating HTML DIFF ---"
         node /tmp/specpress/lib/cli/export-html-diff.js \
           "$SPEC_ROOT" \
-          --output "$HTML_FILE" \
+          --output "output/export.html" \
           --base "$BASE_COMMIT" \
           --revision HEAD \
           --spec-root "$SPEC_ROOT" \
@@ -172,33 +196,57 @@ export:
       else
         echo "=== No CRxxxx.json found — normal export ==="
 
-        DOCX_FILE="output/${COMMIT_DATE}_${SPEC_NUMBER}_${BRANCH_NAME}_${SHORT_SHA}.docx"
-        HTML_FILE="output/${COMMIT_DATE}_${SPEC_NUMBER}_${BRANCH_NAME}_${SHORT_SHA}.html"
+        DOCX_LABEL="${COMMIT_DATE}_${SPEC_NUMBER}_${BRANCH_NAME}_${SHORT_SHA}.docx"
+        HTML_LABEL="${COMMIT_DATE}_${SPEC_NUMBER}_${BRANCH_NAME}_${SHORT_SHA}.html"
 
         echo "--- Generating DOCX ---"
         node /tmp/specpress/lib/cli/export-docx.js \
           "$SPEC_ROOT" \
-          "$DOCX_FILE" \
+          "output/export.docx" \
           --spec-root "$SPEC_ROOT" \
           ${FRONT_PAGE_DATA:+--front-page-data "$FRONT_PAGE_DATA"}
 
         echo "--- Generating HTML ---"
         node /tmp/specpress/lib/cli/export-html.js \
           "$SPEC_ROOT" \
-          "$HTML_FILE" \
+          "output/export.html" \
           --spec-root "$SPEC_ROOT" \
           ${FRONT_PAGE_DATA:+--front-page-data "$FRONT_PAGE_DATA"}
       fi
 
-      echo "DOCX: $DOCX_FILE"
-      echo "HTML: $HTML_FILE"
+      echo "DOCX: output/export.docx ($DOCX_LABEL)"
+      echo "HTML: output/export.html ($HTML_LABEL)"
   artifacts:
     expose_as: 'Rendered HTML'
     paths:
-      - output/*.docx
-      - output/*.html
-      - output/media/
+      - output/export.docx
+      - output/export.html
     expire_in: 30 days
+
+# -----------------------------------------------------------------------------
+# release: create a GitLab Release with direct HTML and DOCX links
+#
+# Runs only when a version tag (e.g. 20.3.0) is pushed to main or a Rel-*
+# branch. Attaches the exported HTML and DOCX as named asset links on the
+# GitLab Releases page, accessible without downloading a zip.
+# -----------------------------------------------------------------------------
+release:
+  stage: deploy
+  image: registry.gitlab.com/gitlab-org/release-cli:latest
+  needs: [export]
+  script:
+    - echo "Creating release $CI_COMMIT_TAG"
+  release:
+    tag_name: $CI_COMMIT_TAG
+    description: "Exported specification $CI_COMMIT_TAG"
+    assets:
+      links:
+        - name: "$SPEC_NUMBER $CI_COMMIT_TAG (HTML)"
+          url: "$CI_PROJECT_URL/-/jobs/artifacts/$CI_COMMIT_TAG/raw/output/export.html?job=export"
+        - name: "$SPEC_NUMBER $CI_COMMIT_TAG (DOCX)"
+          url: "$CI_PROJECT_URL/-/jobs/artifacts/$CI_COMMIT_TAG/raw/output/export.docx?job=export"
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+$/
 
 # -----------------------------------------------------------------------------
 # validate-cr: block MRs with invalid CR metadata

@@ -28,7 +28,7 @@ SpecPress includes command-line scripts for converting a set of files and/or fol
 node node_modules/specpress/lib/cli/export-html.js <inputDir> <outputDir> [--css <file>] [--mermaid-config <file>] [--mscgen-config <file>] [--spec-root <dir>]
 ```
 
-This collects all `.md`, `.markdown`, and `.asn` files from `<inputDir>` (recursively), converts them to a single HTML file at `<outputDir>/index.html`, and copies referenced images into a `media/` subdirectory.
+This collects all `.md`, `.markdown`, and `.asn` files from `<inputDir>` (recursively), converts them to a single HTML file at `<outputDir>/index.html`, with all images embedded as base64 data URIs. The resulting file is fully self-contained.
 
 ### Export to HTML DIFF
 
@@ -38,7 +38,7 @@ node node_modules/specpress/lib/cli/export-html-diff.js <inputPaths...> --output
   [--spec-root <dir>] [--css <file>] [--mermaid-config <file>] [--mscgen-config <file>]
 ```
 
-Generates a tracked-changes HTML file comparing two git versions. Use `local` as a commit identifier to compare against the current working copy. Images are copied to a `media/` directory next to the output file.
+Generates a tracked-changes HTML file comparing two git versions. Use `local` as a commit identifier to compare against the current working copy. All images are embedded as base64 data URIs, producing a fully self-contained HTML file.
 
 ### Export to DOCX
 

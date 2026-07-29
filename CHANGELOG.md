@@ -5,6 +5,12 @@ All notable changes to the SpecPress library will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.4.6] - 2026-07-29
+
+### Changed
+
+- **HTML export embeds images by default** — `exportHtml()` now embeds all images as base64 data URIs directly in the HTML file instead of copying them to a `media/` directory. This makes exported HTML files fully self-contained: a single file that renders correctly in any browser regardless of how it is served (e.g. as a GitLab artifact link). The `--embed-images` CLI flag is still accepted but is now a no-op. Pass `embedImages: false` to `exportHtml()` to restore the old `media/` behaviour.
+
 ## [3.4.5] - 2026-07-27
 
 ### Fixed
@@ -235,6 +241,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Complete rewrite from original internal tool
 - Modular architecture with separate HTML and DOCX paths
 
+[3.4.6]: https://github.com/Ericsson/specpress/compare/v3.4.5...v3.4.6
 [3.4.4]: https://github.com/Ericsson/specpress/compare/v3.4.0...3.4.4
 [3.4.0]: https://github.com/Ericsson/specpress/compare/v3.2.6...v3.4.0
 [3.2.6]: https://github.com/Ericsson/specpress/compare/v3.2.4...v3.2.6
