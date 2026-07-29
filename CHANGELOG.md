@@ -5,6 +5,12 @@ All notable changes to the SpecPress library will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.4.8] - 2026-07-29
+
+### Fixed
+
+- **Embedded images in HTML by default** - Fixed *lib\cli\export-html.js* so that BASE64 embedded images become the default upon HTML export.
+
 ## [3.4.7] - 2026-07-29
 
 ### Fixed
@@ -248,6 +254,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Complete rewrite from original internal tool
 - Modular architecture with separate HTML and DOCX paths
 
+[3.4.8]: https://github.com/Ericsson/specpress/compare/v3.4.7...v3.4.8
 [3.4.7]: https://github.com/Ericsson/specpress/compare/v3.4.6...v3.4.7
 [3.4.6]: https://github.com/Ericsson/specpress/compare/v3.4.5...v3.4.6
 [3.4.4]: https://github.com/Ericsson/specpress/compare/v3.4.0...3.4.4
