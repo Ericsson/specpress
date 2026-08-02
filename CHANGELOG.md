@@ -5,6 +5,22 @@ All notable changes to the SpecPress library will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.4.9] - 2026-08-02
+
+### Changed
+
+- **Image scaling syntax changed to GitLab-style `{width= height=}`** — The explicit image size is now specified with a curly-brace attribute block placed directly after the image link instead of the `=WxH` syntax inside the link parentheses:
+  - `![alt](image.png){width=300}` — display at 300 pixels wide (height auto-calculated)
+  - `![alt](image.png){width=50%}` — display at 50% of the page/body width
+  - `![alt](image.png){width=300 height=200}` — explicit width and height in pixels
+  - A trailing `px` unit is accepted and ignored (`{width=300px}` ≡ `{width=300}`).
+
+  The image link itself stays a plain `![alt](path)`, so editors such as VS Code keep recognizing the path — rename/refactor (F2), go-to-file and broken-link detection now continue to work. The old `=WxH` syntax (`markdown-it-imsize`) is no longer supported.
+
+### Removed
+
+- **`markdown-it-imsize` dependency** — Replaced by a small self-contained `lib/common/mdImageSize.js` markdown-it plugin shared by the HTML and DOCX paths.
+
 ## [3.4.8] - 2026-07-29
 
 ### Fixed

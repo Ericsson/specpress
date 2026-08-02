@@ -113,6 +113,43 @@ describe('HTML export — PNG images (media/, embedImages=false)', () => {
 })
 
 // ---------------------------------------------------------------------------
+// Explicit image scaling ({width=/height=} GitLab-style block)
+// ---------------------------------------------------------------------------
+describe('HTML export — explicit image size {width=/height=}', () => {
+
+  test('{width=300} sets width and keeps a plain image link', () => {
+    const md = '# Test\n\n![alt text](assets/test.png){width=300}\n'
+    const { html, tempDir } = exportSpec(md, { withPng: true })
+    try {
+      assert.ok(/<img[^>]*\bwidth="300"/.test(html), 'width should be set on the img')
+      assert.ok(html.includes('src="data:image/png;base64,'), 'image should still be embedded')
+      assert.ok(!html.includes('{width='), 'the {...} block should be stripped from the output')
+      assert.ok(html.includes('alt="alt text"'), 'alt text should be preserved')
+    } finally { cleanup(tempDir) }
+  })
+
+  test('{width=300 height=200} sets both dimensions', () => {
+    const md = '# Test\n\n![alt text](assets/test.png){width=300 height=200}\n'
+    const { html, tempDir } = exportSpec(md, { withPng: true })
+    try {
+      assert.ok(/<img[^>]*\bwidth="300"/.test(html), 'width should be set')
+      assert.ok(/<img[^>]*\bheight="200"/.test(html), 'height should be set')
+      assert.ok(!html.includes('{width='), 'the {...} block should be stripped')
+    } finally { cleanup(tempDir) }
+  })
+
+  test('{width=50%} keeps the percentage', () => {
+    const md = '# Test\n\n![alt text](assets/test.png){width=50%}\n'
+    const { html, tempDir } = exportSpec(md, { withPng: true })
+    try {
+      assert.ok(/<img[^>]*\bwidth="50%"/.test(html), 'percentage width should be preserved')
+      assert.ok(!html.includes('{width='), 'the {...} block should be stripped')
+    } finally { cleanup(tempDir) }
+  })
+
+})
+
+// ---------------------------------------------------------------------------
 // Mermaid diagrams (cached)
 // ---------------------------------------------------------------------------
 describe('HTML export — mermaid diagrams cached (embedded, default)', () => {

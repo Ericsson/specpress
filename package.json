@@ -1,6 +1,6 @@
 {
 	"name": "specpress",
-	"version": "3.4.8",
+	"version": "3.4.9",
 	"description": "Export PDF and/or DOCX files from a subset of Markdown, ASN.1 and JSON files",
 	"bin": {
 		"sp_export": "./src/bin/export.mjs",
@@ -59,7 +59,6 @@
 		"katex": "^0.16.38",
 		"markdown-it": "^14.1.1",
 		"markdown-it-emoji": "^2.0.2",
-		"markdown-it-imsize": "^2.0.1",
 		"markdown-it-task-lists": "^2.1.1",
 		"markdown-it-texmath": "^1.0.0",
 		"mathml2omml": "^0.5.0"
