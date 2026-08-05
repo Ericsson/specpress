@@ -26,6 +26,16 @@
 # Copy this file to the top level of your specification repository and rename
 # it to ".gitlab-ci.yml". Configure the variables below as needed.
 
+# Run pipelines on push events and on merge request events (for validate-cr).
+# Using workflow:rules ensures both pipeline types are created independently,
+# so a push to a branch with an open MR triggers both a branch pipeline
+# (for export) and an MR pipeline (for validate-cr) rather than only one.
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "push"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_TAG
+
 variables:
   # path to the specification root folder, relative to repo root:
   SPEC_ROOT: "specification"
@@ -222,6 +232,8 @@ export:
       - output/export.docx
       - output/export.html
     expire_in: 30 days
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "push"
 
 # -----------------------------------------------------------------------------
 # release: create a GitLab Release with direct HTML and DOCX links

@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`export` CI job not triggered when a branch has an open MR** — When a project is configured to use merge request pipelines, GitLab replaces the branch pipeline with an MR pipeline for branches with open MRs. The `export` job (rules: `push` only) was therefore excluded. Fixed by adding `workflow: rules` at the top of the pipeline definition, which causes GitLab to create both a branch pipeline and an MR pipeline independently on each push — `export` runs in the branch pipeline, `validate-cr` runs in the MR pipeline.
 - **HTML DIFF export aborts when CR metadata is invalid** — `export-html-diff.js` used `strict: true` for CR cover page loading, causing the export to fail with `exit 1` when `CRxxxx.json` contains validation errors. Changed to `strict: false` (warning + no cover page) to match the DOCX DIFF behaviour. The CI `export` job now always produces output regardless of CR metadata validity, consistent with the intent that `validate-cr` is the gating check.
 
 ## [3.4.11] - 2026-08-02
