@@ -5,6 +5,12 @@ All notable changes to the SpecPress library will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.4.14] - 2026-08-05
+
+### Fixed
+
+- **Mermaid cache miss in `exportHtml()` when `mermaidConfig` is not passed** — `exportHtml()` defaulted `mermaidConfig` to `'{}'` (empty object string) instead of loading the built-in config file. This caused a cache key mismatch with `renderMermaidFence()`, which always uses the real config. On a cache miss the renderer falls back to a live browser render; in CI environments without a browser this produced `svg: null`, causing mermaid diagrams to fall back to `<pre>` blocks with no `<img>` tag. Fixed by defaulting to `loadMermaidConfig(null)` in `exportHtml()`.
+
 ## [3.4.13] - 2026-08-05
 
 ### Fixed
@@ -296,6 +302,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Complete rewrite from original internal tool
 - Modular architecture with separate HTML and DOCX paths
 
+[3.4.14]: https://github.com/Ericsson/specpress/compare/v3.4.13...v3.4.14
 [3.4.13]: https://github.com/Ericsson/specpress/compare/v3.4.12...v3.4.13
 [3.4.12]: https://github.com/Ericsson/specpress/compare/v3.4.11...v3.4.12
 [3.4.11]: https://github.com/Ericsson/specpress/compare/v3.4.10...v3.4.11
