@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [3.4.11] - 2026-08-02
 
+### Added
+
+- **JUnit XML test report in `validate-cr` CI job** — Validation results are now written as a JUnit XML artifact (`cr-validation.xml`). GitLab renders this in the MR "Tests" tab, showing each check by name and surfacing failure messages (e.g. schema errors) directly on the MR page without requiring the user to open the job log.
+
 ### Fixed
 
 - **DOCX DIFF fails with `ENOENT` when revision commit is a symbolic ref (e.g. `HEAD`)** — Two bugs in the DOCX DIFF pipeline, both introduced in the `38171f3` refactoring:

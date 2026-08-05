@@ -258,6 +258,10 @@ release:
 # including work-in-progress states such as a missing CR number. This is
 # intentional: the MR should not be mergeable until all checks pass.
 #
+# Validation results are also written as a JUnit XML report (cr-validation.xml).
+# GitLab renders this in the MR "Tests" tab, showing each check by name and
+# surfacing failure messages directly on the MR page — no log diving needed.
+#
 # If you do not want to receive GitLab failure emails for these expected
 # failures, adjust your notification preferences:
 #   Profile > Notifications > [project] > Custom > uncheck "Failed pipeline"
@@ -274,12 +278,32 @@ validate-cr:
       CR_FILE="${SPEC_ROOT}/history/CRxxxx.json"
       HISTORY_DIR="${SPEC_ROOT}/history"
       TARGET="$CI_MERGE_REQUEST_TARGET_BRANCH_NAME"
+      JUNIT="cr-validation.xml"
+      FAILED=0
+
+      # Helpers to accumulate JUnit test cases
+      JUNIT_CASES=""
+      pass() { JUNIT_CASES="${JUNIT_CASES}<testcase classname=\"CR Validation\" name=\"$1\"/>"; }
+      fail() {
+        MSG=$(echo "$2" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g; s/"/\&quot;/g')
+        JUNIT_CASES="${JUNIT_CASES}<testcase classname=\"CR Validation\" name=\"$1\"><failure message=\"${MSG}\">${MSG}</failure></testcase>"
+        FAILED=1
+      }
+      write_junit() {
+        echo "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" > "$JUNIT"
+        echo "<testsuites><testsuite name=\"CR Validation\">" >> "$JUNIT"
+        echo "$JUNIT_CASES" >> "$JUNIT"
+        echo "</testsuite></testsuites>" >> "$JUNIT"
+      }
 
       # --- (a) CRxxxx.json must exist ---
       if [ ! -f "$CR_FILE" ]; then
+        fail "CRxxxx.json exists" "$CR_FILE not found. A CR metadata file is required before merging."
+        write_junit
         echo "ERROR: $CR_FILE not found. A CR metadata file is required before merging."
         exit 1
       fi
+      pass "CRxxxx.json exists"
       echo "✓ $CR_FILE exists"
 
       # --- (b) CRxxxx.json must match the schema ---
@@ -292,18 +316,25 @@ validate-cr:
           process.exit(1);
         }
       " 2>&1) || {
+        SCHEMA_ERRORS=$(echo "$VALIDATION" | grep "^ERRORS:" | sed 's/^ERRORS://')
+        fail "Schema validation" "$CR_FILE does not match the schema:${SCHEMA_ERRORS}"
+        write_junit
         echo "ERROR: $CR_FILE does not match the schema."
-        echo "$VALIDATION" | grep "^ERRORS:" | sed 's/^ERRORS:/  /'
+        echo "$SCHEMA_ERRORS" | sed 's/^/  /'
         exit 1
       }
+      pass "Schema validation"
       echo "✓ Schema validation passed"
 
       # --- (c) CR field must be present ---
       CR_NUMBER=$(jq -r '.CR // empty' "$CR_FILE")
       if [ -z "$CR_NUMBER" ]; then
+        fail "CR number present" "$CR_FILE has no \"CR\" field. A CR number is required before merging."
+        write_junit
         echo "ERROR: $CR_FILE has no \"CR\" field. A CR number is required before merging."
         exit 1
       fi
+      pass "CR number present"
       echo "✓ CR field present: $CR_NUMBER"
 
       # --- (d) Release must match target branch (unless target is main) ---
@@ -311,31 +342,45 @@ validate-cr:
         RELEASE=$(jq -r '.Release // empty' "$CR_FILE")
         EXPECTED_BRANCH="Rel-${RELEASE}"
         if [ "$EXPECTED_BRANCH" != "$TARGET" ]; then
+          fail "Release matches target branch" "Release field (Rel-${RELEASE}) does not match target branch (${TARGET})."
+          write_junit
           echo "ERROR: Release field (Rel-${RELEASE}) does not match target branch (${TARGET})."
           exit 1
         fi
+        pass "Release matches target branch"
         echo "✓ Release matches target branch: $TARGET"
       else
+        pass "Release matches target branch"
         echo "✓ Target is main — skipping Release check"
       fi
 
-      # --- (e) CRYYYY.json must not already exist ---
+      # --- (e) CR####.json must not already exist ---
       CR_PADDED=$(printf "CR%04d" "$CR_NUMBER")
       FINAL_FILE="${HISTORY_DIR}/${CR_PADDED}.json"
 
       if [ -f "$FINAL_FILE" ]; then
+        fail "CR number not already used" "$FINAL_FILE already exists on the source branch. CR number $CR_NUMBER is already used."
+        write_junit
         echo "ERROR: $FINAL_FILE already exists on the source branch. CR number $CR_NUMBER is already used."
         exit 1
       fi
 
       if git cat-file -e "origin/${TARGET}:${FINAL_FILE}" 2>/dev/null; then
+        fail "CR number not already used" "$FINAL_FILE already exists on the target branch (${TARGET}). CR number $CR_NUMBER is already used."
+        write_junit
         echo "ERROR: $FINAL_FILE already exists on the target branch (${TARGET}). CR number $CR_NUMBER is already used."
         exit 1
       fi
+      pass "CR number not already used"
       echo "✓ ${CR_PADDED}.json does not exist on source or target branch"
 
+      write_junit
       echo ""
       echo "=== All CR validation checks passed ==="
+  artifacts:
+    when: always
+    reports:
+      junit: cr-validation.xml
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "main"
     - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME =~ /^Rel-\d+$/
