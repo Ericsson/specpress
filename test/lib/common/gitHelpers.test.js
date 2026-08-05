@@ -4,7 +4,7 @@ const fs = require('fs')
 const path = require('path')
 const { execSync } = require('child_process')
 const os = require('os')
-const { collectFilesFromCommit } = require('../../../lib/common/gitHelpers')
+const { collectFilesFromCommit, resolveCommit } = require('../../../lib/common/gitHelpers')
 const { FileResolver, createLocalResolver, createCommitResolver } = require('../../../lib/common/fileResolver')
 
 // ── Repo 1: FileResolver tests ────────────────────────────────────────────────
@@ -237,5 +237,47 @@ describe('collectFilesFromCommit', () => {
     assert.ok(basenames.includes('01.md'))
     assert.ok(basenames.includes('extra.md'))
     assert.ok(result.length >= 6, `Expected at least 6 files, got ${result.length}`)
+  })
+})
+
+// ── resolveCommit tests ───────────────────────────────────────────────────────
+
+describe('resolveCommit', () => {
+  let repoDir, tmpBase, commitHash
+
+  before(() => {
+    tmpBase = path.join(os.tmpdir(), 'specpress-resolve-test-' + Date.now())
+    repoDir = path.join(tmpBase, 'repo')
+    fs.mkdirSync(path.join(repoDir, 'spec'), { recursive: true })
+    fs.writeFileSync(path.join(repoDir, 'spec', '01.md'), '# Hello')
+    execSync('git init', { cwd: repoDir, stdio: 'pipe' })
+    execSync('git config commit.gpgsign false', { cwd: repoDir, stdio: 'pipe' })
+    execSync('git add -A', { cwd: repoDir, stdio: 'pipe' })
+    execSync('git -c user.email="t@t.com" -c user.name="T" commit -m "init"', { cwd: repoDir, stdio: 'pipe' })
+    commitHash = execSync('git rev-parse HEAD', { cwd: repoDir, encoding: 'utf8' }).trim()
+  })
+
+  after(() => {
+    try { fs.rmSync(tmpBase, { recursive: true, force: true }) } catch (e) {}
+  })
+
+  test('resolves HEAD to the full commit hash', () => {
+    const resolved = resolveCommit(repoDir, 'HEAD')
+    assert.strictEqual(resolved, commitHash)
+    assert.match(resolved, /^[0-9a-f]{40}$/)
+  })
+
+  test('resolves a full hash to itself', () => {
+    assert.strictEqual(resolveCommit(repoDir, commitHash), commitHash)
+  })
+
+  test('resolves a short hash to the full hash', () => {
+    const short = commitHash.slice(0, 8)
+    assert.strictEqual(resolveCommit(repoDir, short), commitHash)
+  })
+
+  test('resolves a branch name to its commit hash', () => {
+    const branch = execSync('git rev-parse --abbrev-ref HEAD', { cwd: repoDir, encoding: 'utf8' }).trim()
+    assert.strictEqual(resolveCommit(repoDir, branch), commitHash)
   })
 })

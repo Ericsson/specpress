@@ -5,7 +5,16 @@ All notable changes to the SpecPress library will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [3.4.9] - 2026-08-02
+## [3.4.11] - 2026-08-02
+
+### Fixed
+
+- **DOCX DIFF fails with `ENOENT` when revision commit is a symbolic ref (e.g. `HEAD`)** — Two bugs in the DOCX DIFF pipeline, both introduced in the `38171f3` refactoring:
+  - `export-docx-diff.js` passed `path.join(tempDir, 'rev1')` etc. as the temp directory for each revision DOCX, but never created those subdirectories with `mkdirSync`. The old `generateDocx` function wrote all files into the same flat `tempDir`; the subdirectory scheme was added during refactoring but the corresponding `mkdirSync` was omitted.
+  - `convertToDocx` used the raw commit string (e.g. `HEAD`) as the DOCX filename label and passed it verbatim to `collectFilesFromCommit` and `createCommitResolver`. Symbolic refs now resolved to their full hash via a new `resolveCommit()` helper before any file operations.
+- **`resolveCommit()` added to `lib/common/gitHelpers.js`** — New utility that calls `git rev-parse` to expand any ref (symbolic ref, branch name, short hash) to its full 40-character commit hash.
+
+## [3.4.10] - 2026-08-02
 
 ### Changed
 
@@ -270,6 +279,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Complete rewrite from original internal tool
 - Modular architecture with separate HTML and DOCX paths
 
+[3.4.11]: https://github.com/Ericsson/specpress/compare/v3.4.10...v3.4.11
 [3.4.8]: https://github.com/Ericsson/specpress/compare/v3.4.7...v3.4.8
 [3.4.7]: https://github.com/Ericsson/specpress/compare/v3.4.6...v3.4.7
 [3.4.6]: https://github.com/Ericsson/specpress/compare/v3.4.5...v3.4.6
