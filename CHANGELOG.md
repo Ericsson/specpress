@@ -5,6 +5,22 @@ All notable changes to the SpecPress library will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **`--show-tdoc-number` flag for `export-docx-diff.js` and `export-html-diff.js`** — TDoc numbers are now suppressed by default in DOCX and HTML DIFF exports. Pass `--show-tdoc-number` to include the TDoc number from `CRxxxx.json` in the rendered cover page. This allows the CI pipeline to produce artifacts for every commit on a CR branch while ensuring the TDoc number only appears in the artifact that corresponds to the tagged (officially submitted) version. In the `export` CI job, the flag is activated automatically when the current commit has a git tag matching the `TDoc Number` in `CRxxxx.json` (exact string match via `git tag --points-at HEAD`).
+- **`tdocPattern` option in `validateCRCoverPageData` and `loadCRCoverPageData`** — An optional `{ tdocPattern }` parameter overrides the schema's built-in TDoc Number regex for that call only. When provided, a non-standard TDoc (e.g. `6GSM-12345`) that matches the custom pattern is accepted even though the schema would reject it; conversely, a standard TDoc that does not match the custom pattern is rejected. All other schema constraints are unaffected.
+- **`loadCRCoverPageData` always returns `data`** — Previously `data` was `null` when validation failed. It is now always the parsed JSON object (or `null` only when the file cannot be read/parsed). Callers that need to render the cover page regardless of validity (e.g. VS Code export with a warning) can now do so without a separate `JSON.parse` call.
+- **`validate-cr` CI job: CR number must equal MR IID** — The CR number field in `CRxxxx.json` is now validated against `CI_MERGE_REQUEST_IID` instead of merely checking that it is present. Since one GitLab project maps to one specification and one MR maps to one CR, the MR IID serves as the CR number, eliminating the need for an external CR number assignment service. The error message tells the author exactly which value to set.
+- **`validate-cr` CI job: TDoc Number pattern check** — A new check validates the `TDoc Number` field (when present) against a configurable `TDOC_PATTERN` CI variable. The default pattern matches standard 3GPP TDoc formats. Projects can override it to allow non-standard patterns (e.g. `^6GSM-[0-9]{6}$`) or restrict to a specific working group (e.g. `^R2-[0-9]{7}$`).
+- **`TDOC_PATTERN` CI variable** — New variable in `ci_templates/.gitlab-ci.yml` with the standard 3GPP TDoc regex as default. Override in GitLab project Settings → CI/CD → Variables.
+- **MR comment with artifact link after export** — The `export` CI job now posts a comment on the open MR (if any) after each successful build, linking directly to the job artifacts. Each commit on the CR branch gets its own comment, so all artifact versions remain accessible from the MR page.
+
+### Changed
+
+- **`validate-cr` check (c) renamed** — "CR number present" replaced by "CR number matches MR IID". The collision guard (check (g), formerly (e)) is retained as a defensive check against manually corrupted `history/` folders.
+
 ## [3.4.14] - 2026-08-05
 
 ### Fixed
@@ -302,6 +318,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Complete rewrite from original internal tool
 - Modular architecture with separate HTML and DOCX paths
 
+[Unreleased]: https://github.com/Ericsson/specpress/compare/v3.4.14...HEAD
 [3.4.14]: https://github.com/Ericsson/specpress/compare/v3.4.13...v3.4.14
 [3.4.13]: https://github.com/Ericsson/specpress/compare/v3.4.12...v3.4.13
 [3.4.12]: https://github.com/Ericsson/specpress/compare/v3.4.11...v3.4.12

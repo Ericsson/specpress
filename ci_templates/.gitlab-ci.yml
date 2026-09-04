@@ -19,6 +19,12 @@
 #                  Blocks the merge if CR metadata is missing, invalid, or
 #                  conflicts with an existing CR number.
 #
+#                  The CR field in CRxxxx.json must equal the MR IID. Since
+#                  MR IIDs are GitLab-assigned and unique per project, and each
+#                  spec maps to one project, this replaces the external CR
+#                  number assignment service. The author sets the CR number
+#                  once after the MR is created.
+#
 #   release      — Runs when a version tag (e.g. 20.3.0) is pushed. Creates a
 #                  GitLab Release with direct download links for the HTML and
 #                  DOCX artifacts on the Releases page.
@@ -56,6 +62,12 @@ variables:
   #     paste the key into the value field
   #     set Key=CI_PUSH_TOKEN, and
   #     enable "Masked and hidden" and "Protected".
+
+  # Pattern (ERE) that TDoc numbers in CRxxxx.json must match.
+  # Override per project to restrict to a specific working group or allow
+  # non-standard patterns (e.g. "^6GSM-[0-9]{6}$" for 6GSM documents).
+  # The default covers standard 3GPP TDoc formats (RP-/SP-/R1..R6-/C1..C6-/S1..S6-).
+  TDOC_PATTERN: '^[CSR][P1-6]-[0-9]{6,7}$'
 
   # Repository and branch from which the CI pipeline shall download the
   # specpress library for rendering HTML- and DOCX versions upon commits.
@@ -186,6 +198,13 @@ export:
         HTML_LABEL="${COMMIT_DATE}_${SPEC_NUMBER}_DIFF_${BRANCH_NAME}_${SHORT_SHA}.html"
 
         echo "--- Generating DOCX DIFF ---"
+        TDOC_NUMBER=$(jq -r '."TDoc Number" // empty' "$CR_FILE" 2>/dev/null)
+        SHOW_TDOC=""
+        if [ -n "$TDOC_NUMBER" ] && git tag --points-at HEAD | grep -qxF "$TDOC_NUMBER"; then
+          echo "Tag $TDOC_NUMBER matches current commit — TDoc number will be shown"
+          SHOW_TDOC="--show-tdoc-number"
+        fi
+
         node /tmp/specpress/lib/cli/export-docx-diff.js \
           "$SPEC_ROOT" \
           --output "output/export.docx" \
@@ -193,7 +212,8 @@ export:
           --revisions HEAD \
           --backend libreoffice \
           --spec-root "$SPEC_ROOT" \
-          --cr-cover-page-data "$CR_FILE"
+          --cr-cover-page-data "$CR_FILE" \
+          $SHOW_TDOC
 
         echo "--- Generating HTML DIFF ---"
         node /tmp/specpress/lib/cli/export-html-diff.js \
@@ -202,7 +222,8 @@ export:
           --base "$BASE_COMMIT" \
           --revision HEAD \
           --spec-root "$SPEC_ROOT" \
-          --cr-cover-page-data "$CR_FILE"
+          --cr-cover-page-data "$CR_FILE" \
+          $SHOW_TDOC
       else
         echo "=== No CRxxxx.json found — normal export ==="
 
@@ -226,6 +247,17 @@ export:
 
       echo "DOCX: output/export.docx ($DOCX_LABEL)"
       echo "HTML: output/export.html ($HTML_LABEL)"
+
+      MR_IID=$(curl -s --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+        "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/merge_requests?source_branch=${CI_COMMIT_REF_NAME}&state=opened" \
+        | python3 -c "import sys,json; mrs=json.load(sys.stdin); print(mrs[0]['iid'] if mrs else '')")
+      if [ -n "$MR_IID" ]; then
+        ARTIFACT_URL="${CI_PROJECT_URL}/-/jobs/${CI_JOB_ID}/artifacts/download"
+        curl --silent --request POST \
+          --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/merge_requests/${MR_IID}/notes" \
+          --data-urlencode "body=📄 DOCX/HTML for commit \`${CI_COMMIT_SHORT_SHA}\` (${CI_COMMIT_TITLE}) — [Download artifacts](${ARTIFACT_URL})"
+      fi
   artifacts:
     expose_as: 'Rendered HTML'
     paths:
@@ -338,18 +370,41 @@ validate-cr:
       pass "Schema validation"
       echo "✓ Schema validation passed"
 
-      # --- (c) CR field must be present ---
+      # --- (c) CR field must equal the MR IID ---
       CR_NUMBER=$(jq -r '.CR // empty' "$CR_FILE")
       if [ -z "$CR_NUMBER" ]; then
-        fail "CR number present" "$CR_FILE has no \"CR\" field. A CR number is required before merging."
+        fail "CR number matches MR IID" "CR field is empty. Set \"CR\": ${CI_MERGE_REQUEST_IID} in $CR_FILE."
         write_junit
-        echo "ERROR: $CR_FILE has no \"CR\" field. A CR number is required before merging."
+        echo "ERROR: CR field is empty. Set \"CR\": ${CI_MERGE_REQUEST_IID} in $CR_FILE."
         exit 1
       fi
-      pass "CR number present"
-      echo "✓ CR field present: $CR_NUMBER"
+      if [ "$CR_NUMBER" != "$CI_MERGE_REQUEST_IID" ]; then
+        fail "CR number matches MR IID" "CR field ($CR_NUMBER) does not match MR IID (${CI_MERGE_REQUEST_IID}). Set \"CR\": ${CI_MERGE_REQUEST_IID} in $CR_FILE."
+        write_junit
+        echo "ERROR: CR field ($CR_NUMBER) does not match MR IID (${CI_MERGE_REQUEST_IID})."
+        exit 1
+      fi
+      pass "CR number matches MR IID"
+      echo "✓ CR number matches MR IID: $CR_NUMBER"
 
-      # --- (d) Release must match target branch (unless target is main) ---
+      # --- (d) TDoc Number must match TDOC_PATTERN if present ---
+      TDOC_NUMBER=$(jq -r '."TDoc Number" // empty' "$CR_FILE")
+      if [ -n "$TDOC_NUMBER" ]; then
+        if echo "$TDOC_NUMBER" | grep -qE "$TDOC_PATTERN"; then
+          pass "TDoc Number format"
+          echo "✓ TDoc Number matches pattern: $TDOC_NUMBER"
+        else
+          fail "TDoc Number format" "TDoc Number '$TDOC_NUMBER' does not match required pattern '$TDOC_PATTERN'."
+          write_junit
+          echo "ERROR: TDoc Number '$TDOC_NUMBER' does not match required pattern '$TDOC_PATTERN'."
+          exit 1
+        fi
+      else
+        pass "TDoc Number format"
+        echo "✓ TDoc Number not yet set — skipping format check"
+      fi
+
+      # --- (f) Release must match target branch (unless target is main) ---
       if [ "$TARGET" != "main" ]; then
         RELEASE=$(jq -r '.Release // empty' "$CR_FILE")
         EXPECTED_BRANCH="Rel-${RELEASE}"
@@ -366,7 +421,7 @@ validate-cr:
         echo "✓ Target is main — skipping Release check"
       fi
 
-      # --- (e) CR####.json must not already exist ---
+      # --- (g) CR####.json must not already exist (collision guard) ---
       CR_PADDED=$(printf "CR%04d" "$CR_NUMBER")
       FINAL_FILE="${HISTORY_DIR}/${CR_PADDED}.json"
 
