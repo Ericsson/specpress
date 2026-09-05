@@ -80,6 +80,11 @@ export function listToString(aList: unknown[]): string {
   return aList.join(", ");
 }
 
+/** Quotes a file path for log output if it contains characters that break VS Code link detection. */
+export function quotePathForLog(aPath: string): string {
+  return /[()\s]/.test(aPath) ? `"${aPath}"` : aPath;
+}
+
 export function FindAll(aString: string | null, aSubString: string | null, aStartIndex: number = 0): number[] {
   const occurrences: number[] = [];
   if (aString === null || aString === undefined || aString === "" ||
@@ -254,16 +259,17 @@ export abstract class BaseList extends BaseClass {
     let n = 0;
     let schemaErrors = 0;
     let contentErrors = 0;
+    const entryToFile = new Map<string, string>();
     for (const aJsonFile of aFileList) {
       const tempDict = LoadJsonFileToDict(aJsonFile);
-      if (!ValidateSchema(tempDict, aJsonSchema, `${this.getDescriptor()}: ${aJsonFile}`, abortOnError)) {
+      if (!ValidateSchema(tempDict, aJsonSchema, `${this.getDescriptor()}: ${quotePathForLog(aJsonFile)}`, abortOnError)) {
         schemaErrors++;
       }
       let newEntry: BaseClass;
       try {
         newEntry = this._createEntry(tempDict, this);
       } catch (e) {
-        const msg = `${this.getDescriptor()}: ${aJsonFile}: ${(e as Error).message}`;
+        const msg = `${this.getDescriptor()}: ${quotePathForLog(aJsonFile)}: ${(e as Error).message}`;
         if (abortOnError) throw e;
         logger.log(msg);
         contentErrors++;
@@ -277,7 +283,37 @@ export abstract class BaseList extends BaseClass {
         );
       }
 
+      // Check that the file is in the expected subfolder (only when the root
+      // folder is known, i.e. when the file lives somewhere under it)
+      try {
+        const expectedSubfolder = this._getTargetSubfolder(newEntry);
+        const normalizedFile = aJsonFile.replace(/\\/g, "/");
+        const normalizedExpected = expectedSubfolder.replace(/\\/g, "/");
+        // Only flag a mismatch when the file is NOT in the expected subfolder
+        // AND the expected subfolder path appears nowhere in the file path.
+        // This avoids false positives for flat test directories that don't
+        // mirror the production folder structure at all.
+        const inExpected = normalizedFile.includes(`/${normalizedExpected}/`);
+        const inAnyKnownSubfolder =
+          normalizedFile.includes("/ts-38.101-1/") ||
+          normalizedFile.includes("/ts-38.101-2/") ||
+          normalizedFile.includes("/ts-38.101-3/") ||
+          normalizedFile.includes("/FR1_NR_bands/") ||
+          normalizedFile.includes("/FR2_NR_bands/");
+        if (!inExpected && inAnyKnownSubfolder) {
+          const msg = `${this.getDescriptor()}: ${quotePathForLog(aJsonFile)}: File is in the wrong folder. Expected subfolder: '${expectedSubfolder}'.`;
+          if (abortOnError) throw new Error(msg);
+          logger.log(msg);
+          contentErrors++;
+        }
+      } catch (e) {
+        if (abortOnError) throw e;
+        logger.log(`${this.getDescriptor()}: ${quotePathForLog(aJsonFile)}: Could not determine expected subfolder: ${(e as Error).message}`);
+        contentErrors++;
+      }
+
       this.add(newEntry);
+      entryToFile.set(this._getEntryId(newEntry), aJsonFile);
       n++;
     }
 
@@ -288,13 +324,18 @@ export abstract class BaseList extends BaseClass {
       if (abortOnError) {
         this.validate();
       } else {
-        const errors = this.validateCollectErrors();
-        contentErrors = errors.length;
-        if (contentErrors > 0) {
+        const errors = this.validateCollectErrors().map(msg => {
+          for (const [entryId, filePath] of entryToFile.entries()) {
+            if (msg.includes(entryId)) return `${quotePathForLog(filePath)}: ${msg}`;
+          }
+          return msg;
+        });
+        contentErrors += errors.length;
+        if (errors.length > 0) {
           for (const oneError of errors) {
             logger.log(`${this.getDescriptor()}: Content validation error: ${oneError}`);
           }
-          logger.log(`${this.getDescriptor()}: Found ${contentErrors} content validation error(s).`);
+          logger.log(`${this.getDescriptor()}: Found ${errors.length} content validation error(s).`);
         }
       }
       logger.log(`${this.getDescriptor()}: Validated all ${this.data.size} entries.`);

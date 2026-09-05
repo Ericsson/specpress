@@ -3,7 +3,7 @@
 
 import { join, resolve } from "node:path";
 import { RAN4DataHandler } from "./RAN4DataHandler.js";
-import { LoadSchema, CompiledSchema } from "./JsonTools.js";
+import { LoadSchema, CompiledSchema, jsonReadLimits } from "./JsonTools.js";
 
 //////////////////////////////
 // Exit codes (bitwise OR)
@@ -51,6 +51,9 @@ export function loadAndValidateAll(
   const rootFolder = resolve(aRootFolder);
   const db = new RAN4DataHandler();
   let exitCode = EXIT_OK;
+
+  // Reset the cumulative read-size counter so repeated calls don't accumulate
+  jsonReadLimits.reset();
 
   // Load and compile schema files (once) — unless schema validation is disabled
   let schemaBand: CompiledSchema | null = null;

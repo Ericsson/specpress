@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **RAN4 validation improvements** — Several fixes to `lib/ran4/` validation:
+  - **Wrong-folder detection** — Files placed in incorrect subfolders (e.g. a CA file in a DC
+    folder) are now reported as errors. The check only fires when the file path contains a known
+    `ts-38.101-x` segment, avoiding false positives in flat test directories.
+  - **Intra-band EN-DC/NE-DC folder routing** — `DcBandCombinationList._getTargetSubfolder()`
+    now correctly routes EN-DC/NE-DC entries where all band numbers share the same numeric value
+    (e.g. `DC_1A_n1A`) to `Intra-band_DC_FR1` instead of `Inter-band_DC_FR1`.
+  - **Malformed BWC component naming** — When a BC-ID component has a missing or invalid BWC
+    suffix (e.g. `n48` instead of `n48A`), the error message now names the offending component:
+    `Malformed component 'n48': The given string '' is neither a valid single- nor
+    multi-component BWC.`
+  - **File paths quoted in log output** — Paths containing parentheses or spaces are now quoted
+    (e.g. `"...CA_n77(A-C).json"`) so the full path is copy-pasteable from the log. Use Ctrl+P
+    in VS Code to open a copied path directly.
+  - **File path context in content validation errors** — Content validation errors now include
+    the source file path prepended to the error message.
+  - **`jsonReadLimits` reset between validation runs** — `loadAndValidateAll()` now calls
+    `jsonReadLimits.reset()` at the start of each run, preventing the cumulative byte-count from
+    triggering a false "exceeded limit" error on repeated validation runs.
+
 - **`--show-tdoc-number` flag for `export-docx-diff.js` and `export-html-diff.js`** — TDoc numbers are now suppressed by default in DOCX and HTML DIFF exports. Pass `--show-tdoc-number` to include the TDoc number from `CRxxxx.json` in the rendered cover page. This allows the CI pipeline to produce artifacts for every commit on a CR branch while ensuring the TDoc number only appears in the artifact that corresponds to the tagged (officially submitted) version. In the `export` CI job, the flag is activated automatically when the current commit has a git tag matching the `TDoc Number` in `CRxxxx.json` (exact string match via `git tag --points-at HEAD`).
 - **`tdocPattern` option in `validateCRCoverPageData` and `loadCRCoverPageData`** — An optional `{ tdocPattern }` parameter overrides the schema's built-in TDoc Number regex for that call only. When provided, a non-standard TDoc (e.g. `6GSM-12345`) that matches the custom pattern is accepted even though the schema would reject it; conversely, a standard TDoc that does not match the custom pattern is rejected. All other schema constraints are unaffected.
 - **`loadCRCoverPageData` always returns `data`** — Previously `data` was `null` when validation failed. It is now always the parsed JSON object (or `null` only when the file cannot be read/parsed). Callers that need to render the cover page regardless of validity (e.g. VS Code export with a warning) can now do so without a separate `JSON.parse` call.

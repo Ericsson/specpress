@@ -85,9 +85,13 @@ export function SplitBandEntry(aString: string): [RAT | BcType, BandNumber, BWC_
     bwcid = s.substring(i).trim();
     bandNumber = new BandNumber(parseInt(bandNumberStr, 10), RAT.NR);
   } else {
-    bwcid = new BWC_ID(s.substring(i));
+    try {
+      bwcid = new BWC_ID(s.substring(i));
+    } catch (e) {
+      throw new InvalidBcIdException(`Malformed component '${aString}': ${(e as Error).message}`);
+    }
     if (!bwcid.isValid) {
-      throw new InvalidBcIdException(`Could not determine a valid BWC from the given string '${s}'.`);
+      throw new InvalidBcIdException(`Malformed component '${aString}'. The given string '${s.substring(i)}' is neither a valid single- nor multi-component BWC.`);
     }
     bandNumber = new BandNumber(parseInt(bandNumberStr, 10), rat as RAT);
   }

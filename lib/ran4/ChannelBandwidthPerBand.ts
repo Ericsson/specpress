@@ -450,9 +450,9 @@ export class ChannelBandwidthList extends BaseList {
   protected _getTargetSubfolder(anEntry: BaseClass): string {
     const chBw = anEntry as ChBwOneBand;
     if (chBw.bandNumber!.isFr1()) {
-      return join("ts-38.101-1", "operating bands");
+      return join("ts-38.101-1", "FR1_NR_bands");
     }
-    return join("ts-38.101-2", "operating bands");
+    return join("ts-38.101-2", "FR2_NR_bands");
   }
 
   protected _getFileName(anEntry: BaseClass): string {

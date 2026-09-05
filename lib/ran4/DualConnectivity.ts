@@ -279,7 +279,9 @@ export class DcBandCombinationList extends BaseList {
                 if (bcId.isFr2()) throw new Error(`${this.getDescriptor()}: Does not expect FR2 DC configurations but found: ${bcId}`);
                 return path.join("ts-38.101-3", "NR_Inter-band_DC_FR1_and_FR2");
             } else {
-                if (bcId.isIntraBand()) return path.join("ts-38.101-3", "Intra-band_DC_FR1");
+                const bandNumbers = bcId.getBandNumbers();
+                const uniqueNumeric = new Set(bandNumbers.map(b => b.asInt()));
+                if (uniqueNumeric.size === 1) return path.join("ts-38.101-3", "Intra-band_DC_FR1");
                 if (bcId.hasFr2()) return path.join("ts-38.101-3", "Inter-band_DC_Including_FR2");
                 return path.join("ts-38.101-3", "Inter-band_DC_FR1");
             }
