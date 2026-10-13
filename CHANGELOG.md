@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.4.16] - 2026-10-13
+
+### Fixed
+
+- **DOCX export of SVG images embedded via plain markdown links** — A plain markdown image link to an `.svg` file (as opposed to a rendered mermaid/mscgen diagram) fell back to `[Image: ...]` placeholder text in DOCX export instead of being embedded. Fixed in `exportImage()` so SVG files are embedded as a `w:drawing` with dimensions derived from the SVG's own `viewBox`/`width`/`height` (with a raster fallback for Word, which cannot render SVG natively).
+- **Mermaid/MSC-Gen diagram cache leaked into the local `cached/` folder during change-tracking diffs** — `renderCached`/`renderCachedAsync` always derived the diagram cache directory from `specRoot` (i.e. always the real local filesystem `cached/` folder), even when rendering content read from a `FileResolver` backed by a git commit (unpacked to a temp directory). This caused diagram renders of the baseline/historical side of an HTML or DOCX diff to write their cached SVG/PNG files into the real local working tree, showing up as spurious untracked files in git. Fixed by threading an explicit `cacheDir` override through `renderCached`/`renderCachedAsync`, `renderMermaidCached`/`renderMscgenCached`, the HTML mermaid/mscgen fence handlers, and `Md2Docx`, sourced from the relevant `FileResolver`'s own `cacheDir` wherever one is available.
+- **HTML export/diff: baseline images referenced relative to a co-located `assets/` folder were not embedded if renamed locally** — `exportHtml()`'s image-path resolution fell back to checking only the real local filesystem (`fs.existsSync`) for images referenced relative to their own markdown file's directory (the common convention of a sibling `assets/` folder), never consulting the baseline/compare `FileResolver`s. A baseline image that still exists in the baseline commit, but no longer exists at that exact local path because it was renamed or moved as part of unrelated local edits, was left as an unresolved raw path — rendering as an empty figure box in both diff and plain single-commit exports. Fixed by also checking both resolvers in that fallback path.
+- **Updated dependencies to resolve known vulnerabilities** — `fast-uri` 3.1.7 → 3.1.8, `katex` 0.16.45 → 0.16.47, `markdown-it` 14.2.0 → 14.3.2.
+
+## [3.4.15] - 2026-09-05
+
 ### Added
 
 - **RAN4 validation improvements** — Several fixes to `lib/ran4/` validation:
@@ -338,7 +349,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Complete rewrite from original internal tool
 - Modular architecture with separate HTML and DOCX paths
 
-[Unreleased]: https://github.com/Ericsson/specpress/compare/v3.4.14...HEAD
+[Unreleased]: https://github.com/Ericsson/specpress/compare/v3.4.16...HEAD
+[3.4.16]: https://github.com/Ericsson/specpress/compare/v3.4.15...v3.4.16
+[3.4.15]: https://github.com/Ericsson/specpress/compare/v3.4.14...v3.4.15
 [3.4.14]: https://github.com/Ericsson/specpress/compare/v3.4.13...v3.4.14
 [3.4.13]: https://github.com/Ericsson/specpress/compare/v3.4.12...v3.4.13
 [3.4.12]: https://github.com/Ericsson/specpress/compare/v3.4.11...v3.4.12
