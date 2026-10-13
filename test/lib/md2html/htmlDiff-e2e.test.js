@@ -118,6 +118,40 @@ describe('HTML diff — image handling', () => {
     )
   })
 
+  test('new image surrounded by htmldiff-js-normalized &nbsp; whitespace does not leak its raw placeholder ID', () => {
+    // Regression test: htmldiff-js normalizes whitespace tokens to the literal string
+    // "&nbsp;" when diffing around certain insertion/deletion boundaries (see its own
+    // Diff.js). diffHtml() replaces <img> tags with " IMG_<hash> " placeholders before
+    // handing HTML to htmldiff-js, then restores them afterwards by matching the
+    // placeholder surrounded by whitespace. If that restore regex only accepts literal
+    // whitespace (not "&nbsp;"), the match fails for exactly this htmldiff-js-normalized
+    // case and the raw "IMG_xxxxxxxxxxxx" text leaks into the rendered output instead of
+    // the actual <img> tag (reported as a broken-looking placeholder in the live preview
+    // / HTML export when enabling change tracking on a file with newly added images).
+    //
+    // A stub handler is used (rather than real markdown) because triggering htmldiff-js's
+    // &nbsp; normalization reliably requires a specific adjacency between a modified
+    // sentence and an immediately-following placeholder-only paragraph; going through
+    // the full markdown pipeline makes this timing-sensitive to markdown-it's own
+    // whitespace output, whereas controlling the pre-diff HTML directly reproduces it
+    // deterministically.
+    const stubHandler = {
+      fileResolver: null,
+      renderBody(content) {
+        if (content === 'BASELINE') {
+          return '<p>Some old wording that gets substantially changed around here.</p>'
+        }
+        return '<p>Some new wording that gets substantially changed around here.</p>' +
+          '<p><img src="test.png" alt="x"></p>' +
+          '<p>Trailing text after the image to give htmldiff more to chew on and decide how to tokenize things, including punctuation, numbers 123, and symbols !@#.</p>'
+      }
+    }
+    const result = diffHtml({ baselineContent: 'BASELINE', currentContent: 'CURRENT', handler: stubHandler })
+    assert.ok(!/IMG_[0-9a-f]{12}/.test(result), 'raw placeholder ID must not leak into the output')
+    assert.ok(result.includes('diff-ins-block'), 'the new image should be wrapped as an insertion block')
+    assert.ok(result.includes('<img src="test.png"'), 'the actual <img> tag should be restored')
+  })
+
 })
 describe('HTML diff — diagram handling', () => {
 
