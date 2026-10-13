@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.4.17] - 2026-10-13
+
+### Fixed
+
+- **`katex` prototype pollution vulnerability** — Bumped `katex` from `^0.16.38` to `^0.19.0` to resolve [GHSA-238p-pmpm-9mq7](https://github.com/advisories/GHSA-238p-pmpm-9mq7) (prototype pollution that could bypass trust restrictions), which affects katex 0.11.0–0.18.1. Only the stable `renderToString()` API and the `katex/dist/katex.min.css` stylesheet are used by specpress; both are unchanged across this range. `npm audit` reports 0 vulnerabilities after the bump.
+
 ## [3.4.16] - 2026-10-13
 
 ### Fixed
@@ -349,7 +355,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Complete rewrite from original internal tool
 - Modular architecture with separate HTML and DOCX paths
 
-[Unreleased]: https://github.com/Ericsson/specpress/compare/v3.4.16...HEAD
+[Unreleased]: https://github.com/Ericsson/specpress/compare/v3.4.17...HEAD
+[3.4.17]: https://github.com/Ericsson/specpress/compare/v3.4.16...v3.4.17
 [3.4.16]: https://github.com/Ericsson/specpress/compare/v3.4.15...v3.4.16
 [3.4.15]: https://github.com/Ericsson/specpress/compare/v3.4.14...v3.4.15
 [3.4.14]: https://github.com/Ericsson/specpress/compare/v3.4.13...v3.4.14
