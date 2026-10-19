@@ -420,13 +420,13 @@ describe('ASN.1 comment formatting', () => {
 
   test('ASN comment preserves green color for formatted text', async () => {
     const { xml } = await mdToDocXml('```asn\n-- *italic* text\n```\n')
-    assert.ok(xml.includes('81B16B'), 'should have green comment color')
+    assert.ok(xml.includes('0a8701'), 'should have green comment color')
   })
 
   test('ASN comment with no formatting renders plain', async () => {
     const { xml } = await mdToDocXml('```asn\n-- plain comment\n```\n')
     assert.ok(xml.includes('plain comment'), 'should contain plain text')
-    assert.ok(xml.includes('81B16B'), 'should have green color')
+    assert.ok(xml.includes('0a8701'), 'should have green color')
   })
 
   // updateFields option

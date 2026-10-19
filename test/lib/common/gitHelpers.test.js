@@ -127,6 +127,52 @@ describe('FileResolver — git commit mode', () => {
   })
 })
 
+describe('FileResolver — git commit mode normalizes CRLF to LF', () => {
+  let repoDir, tmpBase, commitHash
+
+  before(() => {
+    tmpBase = path.join(os.tmpdir(), 'specpress-git-crlf-test-' + Date.now())
+    repoDir = path.join(tmpBase, 'repo')
+    fs.mkdirSync(path.join(repoDir, 'spec', 'cached'), { recursive: true })
+    // Commit a text file with CRLF line endings, as git archive may return
+    // the blob's raw bytes without applying checkout-time CRLF conversion.
+    fs.writeFileSync(path.join(repoDir, 'spec', 'crlf.md'), '# Title\r\nSome text\r\n')
+    fs.writeFileSync(path.join(repoDir, 'spec', 'cached', 'diagram.svg'), '<svg>\r\n<rect/>\r\n</svg>\r\n')
+    // Binary file with bytes that happen to include \r\n — must NOT be altered.
+    fs.writeFileSync(path.join(repoDir, 'spec', 'cached', 'diagram.png'), Buffer.from([0x89, 0x50, 0x0d, 0x0a, 0x1a, 0x0a]))
+    execSync('git init', { cwd: repoDir, stdio: 'pipe' })
+    execSync('git config commit.gpgsign false', { cwd: repoDir, stdio: 'pipe' })
+    execSync('git config core.autocrlf false', { cwd: repoDir, stdio: 'pipe' })
+    execSync('git add -A', { cwd: repoDir, stdio: 'pipe' })
+    execSync('git -c user.email="test@test.com" -c user.name="Test" commit -m "initial"', { cwd: repoDir, stdio: 'pipe' })
+    commitHash = execSync('git rev-parse HEAD', { cwd: repoDir, encoding: 'utf8' }).trim()
+  })
+
+  after(() => {
+    try { fs.rmSync(tmpBase, { recursive: true, force: true }) } catch (e) {}
+  })
+
+  test('markdown file unpacked from commit has LF-only line endings', () => {
+    const resolver = createCommitResolver(repoDir, path.join(repoDir, 'spec'), commitHash)
+    const content = resolver.readFile(path.join(repoDir, 'spec', 'crlf.md'), 'utf8')
+    assert.ok(!content.includes('\r\n'), 'should not contain CRLF')
+    assert.strictEqual(content, '# Title\nSome text\n')
+  })
+
+  test('SVG file unpacked from commit has LF-only line endings', () => {
+    const resolver = createCommitResolver(repoDir, path.join(repoDir, 'spec'), commitHash)
+    const content = resolver.readFile(path.join(repoDir, 'spec', 'cached', 'diagram.svg'), 'utf8')
+    assert.ok(!content.includes('\r\n'), 'should not contain CRLF')
+    assert.strictEqual(content, '<svg>\n<rect/>\n</svg>\n')
+  })
+
+  test('binary file bytes are left untouched', () => {
+    const resolver = createCommitResolver(repoDir, path.join(repoDir, 'spec'), commitHash)
+    const buf = resolver.readFile(path.join(repoDir, 'spec', 'cached', 'diagram.png'))
+    assert.deepStrictEqual([...buf], [0x89, 0x50, 0x0d, 0x0a, 0x1a, 0x0a])
+  })
+})
+
 // ── Repo 2: collectFilesFromCommit tests ──────────────────────────────────────
 
 describe('collectFilesFromCommit', () => {

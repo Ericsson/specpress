@@ -12,8 +12,8 @@ pre {
   white-space: pre-wrap;     /* keep existing line breaks, allow wrapping */
   font-size: 12px;
   text-align: left;
-  color: #DDD;
-  background-color: #555555;
+  color: #000;
+  background-color: #E6E6E6;
   padding: 4px;
   margin-top: 10px;
   margin-bottom: 5px;
@@ -30,8 +30,8 @@ samp  {
   font-family: monospace;
   font-size: 12px;
   text-align: left;
-  color: #DDD;
-  background-color: #555555;
+  color: #000;
+  background-color: #E6E6E6;
 }
 
 
@@ -223,38 +223,38 @@ p.table-note {
 tr:nth-child(even) {background: #FFF}
 tr:nth-child(odd) {background: #FFF}
 
-/* ASN.1 Syntax Highlighting */
+/* ASN.1 Syntax Highlighting — matches eASN.1's RTF export palette (RTF_COLORS) */
 .asn-keyword {
-  color: #C586C0;
+  color: #a929d4;
   font-weight: bold;
 }
 
 .asn-comment {
-  color: rgb(129, 177, 107);
+  color: #0a8701;
 }
 
 .asn-type {
-  color: #d7ba7d;
+  color: #00494b;
 }
 
 .asn-field {
-  color: #4CC1BB;
+  color: #7f2400;
 }
 
 pre.asn {
-  background: #303030;
+  background: #E6E6E6;
   padding: 10px;
   margin-bottom: 0.0em;
   margin-top: 1.0em;
   overflow-x: auto;
   border-radius: 4px;
   font-size: 12px;
-  color: #DCA;
+  color: #000;
   line-height: 1.2
 }
 
 pre.asn code {
-  background: #303030;
+  background: #E6E6E6;
   padding: 0;
 }
 

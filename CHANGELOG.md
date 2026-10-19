@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.4.18] - 2026-10-19
+
+### Changed
+
+- **Code fence color scheme (HTML and DOCX)** — Fenced code blocks (the `PL` DOCX style and the HTML `pre`/`code` rules) switched from a dark-grey background with light foreground to a light-grey (10%, `#E6E6E6`) background with black foreground, matching the printed 3GPP look. ASN.1 syntax highlighting (`.asn-keyword`, `.asn-comment`, `.asn-type`, `.asn-field` in CSS; the corresponding `TextRun` colors in `lib/md2docx/handlers/asnHandler.js`) was recolored to match the palette defined by eASN.1's RTF clipboard export (`RTF_COLORS` in `richCopy.ts`), keeping ASN.1 coloring consistent between SpecPress output and text pasted from the eASN.1 extension.
+
+### Fixed
+
+- **Cached diagram SVGs and SVG images could show spurious tracked changes in DOCX/HTML diff exports due to CRLF line endings** — Byte-identical SVG content (cached mermaid/MSC-Gen diagrams, and `.svg` files embedded via a plain markdown image link) could read back with CRLF instead of LF line endings, depending on the renderer, the contributor's local git config, or whether the content was read via a normal file read vs. `git archive` (used by `FileResolver` to unpack a git commit for diff export). Since `git archive` does not apply the same CRLF normalization a regular `git checkout` would, this produced spurious diffs even when nothing about the diagram or image had actually changed. Fixed by normalizing CRLF to LF for SVG content before embedding (both DOCX and HTML export) and for all recognized text file types (`.md`, `.markdown`, `.asn`, `.asn1`, `.json`, `.svg`, `.txt`, `.css`) when `FileResolver` unpacks a git commit to its temp directory — consistent with the existing CRLF-to-LF normalization already applied to local `.md`/`.asn` source files.
+- **Stale/incomplete git-commit cache could cause `ENOENT` during DOCX/HTML export or diff** — `FileResolver._unpackIfNeeded()` used directory existence under `os.tmpdir()/specpress-cache/<commit>/` as the sole signal that a commit had already been unpacked. An interrupted process, a crashed export, or a transient `git archive` failure (previously swallowed silently for every path, not just ones genuinely absent from the commit) could leave behind a partially-populated directory that was then reused indefinitely — across VS Code sessions and reboots — causing later exports of that same commit to fail with `ENOENT` for files that exist in the commit but were never actually extracted. Fixed by writing a `.unpacked` sentinel file only after extraction fully succeeds; a missing sentinel now triggers a full wipe and clean re-unpack, and genuine `git archive` failures (checked via `git cat-file -e`) are no longer swallowed. Applies uniformly to DOCX export/diff and HTML export/diff, since both go through the same `createCommitResolver()`.
+
 ## [3.4.17] - 2026-10-13
 
 ### Fixed
