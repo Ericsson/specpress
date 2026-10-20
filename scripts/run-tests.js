@@ -20,6 +20,7 @@ const SLOW_E2E_TESTS = new Set([
 const OTHER_E2E_TESTS = new Set([
   path.join(testDir, 'lib', 'docx-diff', 'docx-diff-e2e.test.js'),
   path.join(testDir, 'lib', 'docx-diff', 'docx-diff-libre-e2e.test.js'),
+  path.join(testDir, 'lib', 'docx-diff', 'docx-diff-diagrams-e2e.test.js'),
   path.join(testDir, 'lib', 'md2docx', 'handlers', 'mermaidBrowserKill.test.js'),
 ])
 const ALL_E2E_TESTS = new Set([...SLOW_E2E_TESTS, ...OTHER_E2E_TESTS])
