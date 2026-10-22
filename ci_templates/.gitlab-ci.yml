@@ -7,23 +7,33 @@
 #                  (zero-padded CR number) and pushes the commit back to the
 #                  branch. Requires CI_PUSH_TOKEN to be set in CI/CD variables.
 #
-#   export-document — Runs on every push to any branch, after finalize-cr.
+#   export       — Runs on every push to any branch, after finalize-cr.
 #                  On main/Rel-* branches this means it sees the renamed
 #                  CR####.json (no CRxxxx.json), so it produces a normal DOCX
 #                  and HTML export instead of a DIFF.
 #                  On feature branches it generates a DOCX DIFF and HTML DIFF
 #                  if CRxxxx.json exists, otherwise a normal DOCX and HTML export.
-#                  Artifacts (DOCX + HTML + media) are retained for 30 days.
+#                  Artifacts (DOCX + self-contained HTML) are retained for 30 days.
 #
 #   validate-cr  — Runs on merge requests targeting "main" or "Rel-*" branches.
 #                  Blocks the merge if CR metadata is missing, invalid, or
 #                  conflicts with an existing CR number.
 #
-#                  The CR field in CRxxxx.json must equal the MR IID. Since
-#                  MR IIDs are GitLab-assigned and unique per project, and each
-#                  spec maps to one project, this replaces the external CR
-#                  number assignment service. The author sets the CR number
-#                  once after the MR is created.
+#                  If USE_MR_IID_AS_CR_NUMBER is "true" (default), the CR field
+#                  in CRxxxx.json must equal the MR IID. Since MR IIDs are
+#                  GitLab-assigned and unique per project, and each spec maps
+#                  to one project, this replaces the external CR number
+#                  assignment service. The author sets the CR number once
+#                  after the MR is created.
+#                  If "false", the CR number only has to be present and must
+#                  not collide with an existing CR####.json in the history
+#                  folder.
+#
+#   notify-mr    — Runs after a successful export on branch pushes. Posts a
+#                  comment with links to the HTML, DOCX and ZIP artifacts to the
+#                  branch's open merge request. Requires CI_NOTE_TOKEN
+#                  (see the variables section below); skipped with a warning
+#                  if unset.
 #
 #   release      — Runs when a version tag (e.g. 20.3.0) is pushed. Creates a
 #                  GitLab Release with direct download links for the HTML and
@@ -63,11 +73,40 @@ variables:
   #     set Key=CI_PUSH_TOKEN, and
   #     enable "Masked and hidden" and "Protected".
 
+  # CI_NOTE_TOKEN is required for notify-mr (optional: without it no MR comment
+  # with links to the exported artifacts is posted). CI_JOB_TOKEN cannot be used
+  # because it is not permitted to read merge requests or to create MR notes.
+  #   To generate: Settings > Access Tokens > Add new token,
+  #     enter a descriptive token name such as "SpecPress notifier" (it is shown as the
+  #     author name of the MR comments, so do not name it after the variable),
+  #     select role "Reporter" (or higher) and scope "api", copy the value.
+  #   Then store it via Settings > CI/CD > Variables > CI/CD Variables > Add variable
+  #     paste the key into the value field
+  #     set Key=CI_NOTE_TOKEN, and
+  #     enable "Masked and hidden".
+  #   The comments are authored by the token's bot user.
+
+  # If "true", validate-cr requires the "CR" field in CRxxxx.json to equal the
+  # merge request IID. MR IIDs are unique per project, so this replaces an
+  # external CR number assignment service (suitable when each specification
+  # lives in its own project).
+  # If "false", validate-cr only checks that a CR number is present in
+  # CRxxxx.json and that no CR####.json with that number already exists in the
+  # history folder (on the source or target branch).
+  USE_MR_IID_AS_CR_NUMBER: "false"
+
   # Pattern (ERE) that TDoc numbers in CRxxxx.json must match.
   # Override per project to restrict to a specific working group or allow
   # non-standard patterns (e.g. "^6GSM-[0-9]{6}$" for 6GSM documents).
   # The default covers standard 3GPP TDoc formats (RP-/SP-/R1..R6-/C1..C6-/S1..S6-).
   TDOC_PATTERN: '^[CSR][P1-6]-[0-9]{6,7}$'
+
+  # If "true", the TDoc number from CRxxxx.json is only rendered on the CR cover
+  # page of the DOCX/HTML DIFF exports when a git tag equal to that TDoc number
+  # points at the pushed commit. This prevents the artifacts of every commit on
+  # a CR branch from carrying the TDoc number before the CR has been tagged.
+  # If "false", the TDoc number is always shown on the CR cover page.
+  REQUIRE_TDOC_NUMBER_TAG: "true"
 
   # Repository and branch from which the CI pipeline shall download the
   # specpress library for rendering HTML- and DOCX versions upon commits.
@@ -75,7 +114,7 @@ variables:
   SPECPRESS_REPO: "https://github.com/Ericsson/specpress.git"
   SPECPRESS_REF: "main"
 
-  # Docker image for the export-document job. The default node:20 image does not
+  # Docker image for the export job. The default node:20 image does not
   # include Msc-generator. To enable MSC-Gen diagram rendering in CI, build a
   # custom image that includes msc-gen and set this variable to its registry path.
   # See ci_templates/Dockerfile.specpress for an example.
@@ -153,9 +192,8 @@ finalize-cr:
 # against the merge-base of the target release branch.
 # On regular branches: generates a plain DOCX and plain HTML export.
 #
-# Artifacts include both output/*.docx and output/*.html + output/media/.
-# The HTML artifact is exposed as a browsable link on the MR/pipeline page
-# via "expose_as".
+# Artifacts include output/export.docx and the self-contained output/export.html
+# (images are embedded as BASE64).
 # -----------------------------------------------------------------------------
 export:
   stage: build
@@ -200,9 +238,14 @@ export:
         echo "--- Generating DOCX DIFF ---"
         TDOC_NUMBER=$(jq -r '."TDoc Number" // empty' "$CR_FILE" 2>/dev/null)
         SHOW_TDOC=""
-        if [ -n "$TDOC_NUMBER" ] && git tag --points-at HEAD | grep -qxF "$TDOC_NUMBER"; then
-          echo "Tag $TDOC_NUMBER matches current commit — TDoc number will be shown"
-          SHOW_TDOC="--show-tdoc-number"
+        if [ -n "$TDOC_NUMBER" ]; then
+          if [ "$REQUIRE_TDOC_NUMBER_TAG" != "true" ]; then
+            echo "REQUIRE_TDOC_NUMBER_TAG is not \"true\" — TDoc number will be shown"
+            SHOW_TDOC="--show-tdoc-number"
+          elif git tag --points-at HEAD | grep -qxF "$TDOC_NUMBER"; then
+            echo "Tag $TDOC_NUMBER matches current commit — TDoc number will be shown"
+            SHOW_TDOC="--show-tdoc-number"
+          fi
         fi
 
         node /tmp/specpress/lib/cli/export-docx-diff.js \
@@ -247,25 +290,83 @@ export:
 
       echo "DOCX: output/export.docx ($DOCX_LABEL)"
       echo "HTML: output/export.html ($HTML_LABEL)"
-
-      MR_IID=$(curl -s --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
-        "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/merge_requests?source_branch=${CI_COMMIT_REF_NAME}&state=opened" \
-        | python3 -c "import sys,json; mrs=json.load(sys.stdin); print(mrs[0]['iid'] if mrs else '')")
-      if [ -n "$MR_IID" ]; then
-        ARTIFACT_URL="${CI_PROJECT_URL}/-/jobs/${CI_JOB_ID}/artifacts/download"
-        curl --silent --request POST \
-          --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
-          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/merge_requests/${MR_IID}/notes" \
-          --data-urlencode "body=📄 DOCX/HTML for commit \`${CI_COMMIT_SHORT_SHA}\` (${CI_COMMIT_TITLE}) — [Download artifacts](${ARTIFACT_URL})"
-      fi
+    - echo "EXPORT_JOB_ID=${CI_JOB_ID}" > export.env
   artifacts:
-    expose_as: 'Rendered HTML'
     paths:
       - output/export.docx
       - output/export.html
+    reports:
+      # Hands the job ID to notify-mr so that it can build artifact URLs.
+      dotenv: export.env
     expire_in: 30 days
   rules:
     - if: $CI_PIPELINE_SOURCE == "push"
+
+# -----------------------------------------------------------------------------
+# notify-mr: post a comment with links to the exported artifacts on the MR
+#
+# Runs after a successful export on branch pushes. If an open merge request
+# exists for the pushed branch, a new comment is added to the MR's Activity
+# section with links to the HTML, the DOCX and a ZIP of both. The files are
+# downloaded, not rendered in the browser: GitLab does not display
+# artifact HTML inline unless GitLab Pages is configured for that. Because a new
+# comment is posted per push, it appears in the timeline right after the
+# "added N commits" entry.
+#
+# Requires CI_NOTE_TOKEN; see the variables section at the top of this file for
+# how to create and configure it.
+# If CI_NOTE_TOKEN is not set, the job logs a warning and does nothing.
+# The job is allowed to fail so that a notification problem never blocks a
+# pipeline; failures show up as a warning on the pipeline.
+#
+# Limitation: if the MR is created after the last push, no comment exists until
+# the next push.
+# -----------------------------------------------------------------------------
+notify-mr:
+  stage: deploy
+  image: alpine:latest
+  needs: [export]
+  allow_failure: true
+  before_script:
+    - apk add --no-cache curl jq
+  script:
+    - |
+      if [ -z "$CI_NOTE_TOKEN" ]; then
+        echo "WARNING: CI_NOTE_TOKEN is not set — skipping MR comment."
+        exit 0
+      fi
+
+      curl --silent --fail --get \
+        --header "PRIVATE-TOKEN: ${CI_NOTE_TOKEN}" \
+        --data-urlencode "source_branch=${CI_COMMIT_REF_NAME}" \
+        --data-urlencode "state=opened" \
+        --output /tmp/mrs.json \
+        "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/merge_requests" || {
+        echo "ERROR: could not query merge requests (check CI_NOTE_TOKEN scope/role)."
+        exit 1
+      }
+      MR_IID=$(jq -r '.[0].iid // empty' /tmp/mrs.json)
+      if [ -z "$MR_IID" ]; then
+        echo "No open merge request for branch ${CI_COMMIT_REF_NAME} — nothing to do."
+        exit 0
+      fi
+
+      BASE="${CI_PROJECT_URL}/-/jobs/${EXPORT_JOB_ID}/artifacts"
+      BODY="📄 Export for commit \`${CI_COMMIT_SHORT_SHA}\` (${CI_COMMIT_TITLE}): [HTML (download)](${BASE}/file/output/export.html) · [DOCX (download)](${BASE}/raw/output/export.docx) · [ZIP (HTML + DOCX)](${BASE}/download)"
+
+      HTTP_CODE=$(curl --silent --output /tmp/response.json --write-out '%{http_code}' \
+        --request POST \
+        --header "PRIVATE-TOKEN: ${CI_NOTE_TOKEN}" \
+        --data-urlencode "body=${BODY}" \
+        "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/merge_requests/${MR_IID}/notes")
+      if [ "$HTTP_CODE" != "201" ]; then
+        echo "ERROR: posting comment to MR !${MR_IID} failed (HTTP ${HTTP_CODE}):"
+        cat /tmp/response.json
+        exit 1
+      fi
+      echo "✓ Comment posted to MR !${MR_IID}"
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH
 
 # -----------------------------------------------------------------------------
 # release: create a GitLab Release with direct HTML and DOCX links
@@ -370,38 +471,47 @@ validate-cr:
       pass "Schema validation"
       echo "✓ Schema validation passed"
 
-      # --- (c) CR field must equal the MR IID ---
+      # --- (c) CR number must be present; if USE_MR_IID_AS_CR_NUMBER is "true",
+      #         it must also equal the MR IID ---
       CR_NUMBER=$(jq -r '.CR // empty' "$CR_FILE")
-      if [ -z "$CR_NUMBER" ]; then
-        fail "CR number matches MR IID" "CR field is empty. Set \"CR\": ${CI_MERGE_REQUEST_IID} in $CR_FILE."
-        write_junit
-        echo "ERROR: CR field is empty. Set \"CR\": ${CI_MERGE_REQUEST_IID} in $CR_FILE."
-        exit 1
-      fi
-      if [ "$CR_NUMBER" != "$CI_MERGE_REQUEST_IID" ]; then
-        fail "CR number matches MR IID" "CR field ($CR_NUMBER) does not match MR IID (${CI_MERGE_REQUEST_IID}). Set \"CR\": ${CI_MERGE_REQUEST_IID} in $CR_FILE."
-        write_junit
-        echo "ERROR: CR field ($CR_NUMBER) does not match MR IID (${CI_MERGE_REQUEST_IID})."
-        exit 1
-      fi
-      pass "CR number matches MR IID"
-      echo "✓ CR number matches MR IID: $CR_NUMBER"
-
-      # --- (d) TDoc Number must match TDOC_PATTERN if present ---
-      TDOC_NUMBER=$(jq -r '."TDoc Number" // empty' "$CR_FILE")
-      if [ -n "$TDOC_NUMBER" ]; then
-        if echo "$TDOC_NUMBER" | grep -qE "$TDOC_PATTERN"; then
-          pass "TDoc Number format"
-          echo "✓ TDoc Number matches pattern: $TDOC_NUMBER"
-        else
-          fail "TDoc Number format" "TDoc Number '$TDOC_NUMBER' does not match required pattern '$TDOC_PATTERN'."
+      if [ "$USE_MR_IID_AS_CR_NUMBER" = "true" ]; then
+        if [ -z "$CR_NUMBER" ]; then
+          fail "CR number matches MR IID" "CR field is empty. Set \"CR\": ${CI_MERGE_REQUEST_IID} in $CR_FILE."
           write_junit
-          echo "ERROR: TDoc Number '$TDOC_NUMBER' does not match required pattern '$TDOC_PATTERN'."
+          echo "ERROR: CR field is empty. Set \"CR\": ${CI_MERGE_REQUEST_IID} in $CR_FILE."
           exit 1
         fi
+        if [ "$CR_NUMBER" != "$CI_MERGE_REQUEST_IID" ]; then
+          fail "CR number matches MR IID" "CR field ($CR_NUMBER) does not match MR IID (${CI_MERGE_REQUEST_IID}). Set \"CR\": ${CI_MERGE_REQUEST_IID} in $CR_FILE."
+          write_junit
+          echo "ERROR: CR field ($CR_NUMBER) does not match MR IID (${CI_MERGE_REQUEST_IID})."
+          exit 1
+        fi
+        pass "CR number matches MR IID"
+        echo "✓ CR number matches MR IID: $CR_NUMBER"
       else
+        if [ -z "$CR_NUMBER" ]; then
+          fail "CR number present" "CR field is empty. Set a CR number in $CR_FILE."
+          write_junit
+          echo "ERROR: CR field is empty. Set a CR number in $CR_FILE."
+          exit 1
+        fi
+        pass "CR number present"
+        echo "✓ CR number present: $CR_NUMBER (MR IID match not enforced)"
+      fi
+
+      # --- (d) TDoc Number must match TDOC_PATTERN ---
+      # Presence of the TDoc Number is already guaranteed by the schema
+      # validation in (b), which reports a missing TDoc Number as an error.
+      TDOC_NUMBER=$(jq -r '."TDoc Number" // empty' "$CR_FILE")
+      if echo "$TDOC_NUMBER" | grep -qE "$TDOC_PATTERN"; then
         pass "TDoc Number format"
-        echo "✓ TDoc Number not yet set — skipping format check"
+        echo "✓ TDoc Number matches pattern: $TDOC_NUMBER"
+      else
+        fail "TDoc Number format" "TDoc Number '$TDOC_NUMBER' does not match required pattern '$TDOC_PATTERN'."
+        write_junit
+        echo "ERROR: TDoc Number '$TDOC_NUMBER' does not match required pattern '$TDOC_PATTERN'."
+        exit 1
       fi
 
       # --- (f) Release must match target branch (unless target is main) ---
@@ -431,6 +541,10 @@ validate-cr:
         echo "ERROR: $FINAL_FILE already exists on the source branch. CR number $CR_NUMBER is already used."
         exit 1
       fi
+
+      # Make sure the target branch is available locally for the check below
+      # (the runner's default fetch may not include it).
+      git fetch --quiet origin "$TARGET" 2>/dev/null || true
 
       if git cat-file -e "origin/${TARGET}:${FINAL_FILE}" 2>/dev/null; then
         fail "CR number not already used" "$FINAL_FILE already exists on the target branch (${TARGET}). CR number $CR_NUMBER is already used."

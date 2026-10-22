@@ -135,6 +135,25 @@ describe('schema-driven validation', () => {
     const result = validateCRCoverPageData({ ...validData, Release: 18 }, 'test.json')
     assert.strictEqual(result.valid, true)
   })
+
+  test('flags schema-conformant data without CR and TDoc Number as incompleteOnly', () => {
+    const { CR, 'TDoc Number': tdoc, ...draft } = validData
+    const result = validateCRCoverPageData(draft, 'test.json')
+    assert.strictEqual(result.valid, false)
+    assert.strictEqual(result.incompleteOnly, true)
+  })
+
+  test('does not flag schema violations as incompleteOnly', () => {
+    const { CR, ...draft } = validData
+    const result = validateCRCoverPageData({ ...draft, Category: 'invalid' }, 'test.json')
+    assert.strictEqual(result.valid, false)
+    assert.strictEqual(result.incompleteOnly, false)
+  })
+
+  test('complete data is not incompleteOnly', () => {
+    assert.strictEqual(validateCRCoverPageData(validData, 'test.json').incompleteOnly, false)
+  })
+
 })
 
 describe('loadCRCoverPageData', () => {
