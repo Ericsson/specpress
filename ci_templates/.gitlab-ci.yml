@@ -95,12 +95,6 @@ variables:
   # history folder (on the source or target branch).
   USE_MR_IID_AS_CR_NUMBER: "false"
 
-  # Pattern (ERE) that TDoc numbers in CRxxxx.json must match.
-  # Override per project to restrict to a specific working group or allow
-  # non-standard patterns (e.g. "^6GSM-[0-9]{6}$" for 6GSM documents).
-  # The default covers standard 3GPP TDoc formats (RP-/SP-/R1..R6-/C1..C6-/S1..S6-).
-  TDOC_PATTERN: '^[CSR][P1-6]-[0-9]{6,7}$'
-
   # If "true", the TDoc number from CRxxxx.json is only rendered on the CR cover
   # page of the DOCX/HTML DIFF exports when a git tag equal to that TDoc number
   # points at the pushed commit. This prevents the artifacts of every commit on
@@ -498,20 +492,6 @@ validate-cr:
         fi
         pass "CR number present"
         echo "✓ CR number present: $CR_NUMBER (MR IID match not enforced)"
-      fi
-
-      # --- (d) TDoc Number must match TDOC_PATTERN ---
-      # Presence of the TDoc Number is already guaranteed by the schema
-      # validation in (b), which reports a missing TDoc Number as an error.
-      TDOC_NUMBER=$(jq -r '."TDoc Number" // empty' "$CR_FILE")
-      if echo "$TDOC_NUMBER" | grep -qE "$TDOC_PATTERN"; then
-        pass "TDoc Number format"
-        echo "✓ TDoc Number matches pattern: $TDOC_NUMBER"
-      else
-        fail "TDoc Number format" "TDoc Number '$TDOC_NUMBER' does not match required pattern '$TDOC_PATTERN'."
-        write_junit
-        echo "ERROR: TDoc Number '$TDOC_NUMBER' does not match required pattern '$TDOC_PATTERN'."
-        exit 1
       fi
 
       # --- (f) Release must match target branch (unless target is main) ---

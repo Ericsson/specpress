@@ -48,6 +48,13 @@ describe('schema-driven validation', () => {
     assert.strictEqual(result.errors.length, 0)
   })
 
+  test('accepts 6GSM TDoc Numbers with 6 or 7 digits', () => {
+    for (const tdoc of ['6GSM-123456', '6GSM-1234567']) {
+      const result = validateCRCoverPageData({ ...validData, 'TDoc Number': tdoc }, 'test.json')
+      assert.strictEqual(result.valid, true, `${tdoc} should be accepted`)
+    }
+  })
+
   test('rejects TDoc Number not matching schema pattern', () => {
     const result = validateCRCoverPageData({ ...validData, 'TDoc Number': '6GSM-12345' }, 'test.json')
     assert.strictEqual(result.valid, false)
@@ -56,8 +63,8 @@ describe('schema-driven validation', () => {
 
   test('accepts non-standard TDoc Number when custom tdocPattern matches', () => {
     const result = validateCRCoverPageData(
-      { ...validData, 'TDoc Number': '6GSM-123456' }, 'test.json',
-      { tdocPattern: '^6GSM-[0-9]{6}$' }
+      { ...validData, 'TDoc Number': 'XYZ-123456' }, 'test.json',
+      { tdocPattern: '^XYZ-[0-9]{6}$' }
     )
     assert.strictEqual(result.valid, true)
     assert.strictEqual(result.errors.length, 0)
@@ -75,19 +82,19 @@ describe('schema-driven validation', () => {
 
   test('shows custom pattern in error when schema also rejects TDoc Number', () => {
     const result = validateCRCoverPageData(
-      { ...validData, 'TDoc Number': '6GSM-123456' }, 'test.json',
-      { tdocPattern: '^6GSM-[0-9]{7}$' }  // wrong digit count — both schema and custom reject
+      { ...validData, 'TDoc Number': 'XYZ-123456' }, 'test.json',
+      { tdocPattern: '^XYZ-[0-9]{7}$' }  // wrong digit count — both schema and custom reject
     )
     assert.strictEqual(result.valid, false)
     const tdocErr = result.errors.find(e => e.startsWith('TDoc Number:'))
     assert.ok(tdocErr, 'should have a TDoc Number error')
-    assert.ok(tdocErr.includes('^6GSM-[0-9]{7}$'), 'error should show custom pattern, not default')
+    assert.ok(tdocErr.includes('^XYZ-[0-9]{7}$'), 'error should show custom pattern, not default')
   })
 
   test('custom tdocPattern does not affect other fields', () => {
     const result = validateCRCoverPageData(
-      { ...validData, 'TDoc Number': '6GSM-123456', Category: 'Z' }, 'test.json',
-      { tdocPattern: '^6GSM-[0-9]{6}$' }
+      { ...validData, 'TDoc Number': 'XYZ-123456', Category: 'Z' }, 'test.json',
+      { tdocPattern: '^XYZ-[0-9]{6}$' }
     )
     assert.strictEqual(result.valid, false)
     assert.ok(result.errors.some(e => e.includes('Category')))
@@ -176,12 +183,12 @@ describe('loadCRCoverPageData', () => {
   test('passes tdocPattern option through to validation', () => {
     const tmp = path.join(os.tmpdir(), `cr_loader_tdoc_${Date.now()}.json`)
     // validData already has CR:123; override TDoc Number with non-standard value
-    fs.writeFileSync(tmp, JSON.stringify({ ...validData, 'TDoc Number': '6GSM-123456' }))
+    fs.writeFileSync(tmp, JSON.stringify({ ...validData, 'TDoc Number': 'XYZ-123456' }))
     try {
       const withoutPattern = loadCRCoverPageData(tmp)
-      assert.strictEqual(withoutPattern.valid, false) // schema rejects 6GSM-123456
+      assert.strictEqual(withoutPattern.valid, false) // schema rejects XYZ-123456
 
-      const withPattern = loadCRCoverPageData(tmp, { tdocPattern: '^6GSM-[0-9]{6}$' })
+      const withPattern = loadCRCoverPageData(tmp, { tdocPattern: '^XYZ-[0-9]{6}$' })
       assert.strictEqual(withPattern.valid, true)
     } finally {
       fs.unlinkSync(tmp)

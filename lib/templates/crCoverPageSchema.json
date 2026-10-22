@@ -21,13 +21,14 @@
   "properties": {
     "TDoc Number": {
       "type": "string",
-      "description": "Document number indicating the group and a running number that starts with the year (e.g., 'RP-240123', 'R3-1234567', 'SP-263456')",
-      "pattern": "^[CSR][P1-6]-[0-9]{6,7}$",
+      "description": "Document number indicating the group and a running number that starts with the year (e.g., 'RP-240123', 'R3-1234567', 'SP-263456', '6GSM-123456')",
+      "pattern": "^([CSR][P1-6]|6GSM)-[0-9]{6,7}$",
       "examples": [
         "RP-240123",
         "R3-1234567",
         "SP-263456",
-        "C4-0012345"
+        "C4-0012345",
+        "6GSM-123456"
       ]
     },
     "Specification": {

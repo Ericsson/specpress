@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.4.20] - 2026-10-23
+
+### Added
+
+- **6GSM TDoc numbers** — The CR cover page schema now accepts `6GSM-` TDoc numbers with 6 or 7 digits (e.g. `6GSM-123456`) in addition to the standard 3GPP formats.
+
+### Removed
+
+- **`TDOC_PATTERN` CI variable and the separate TDoc format check in `validate-cr`** — The TDoc number format is validated by the CR cover page schema. The `tdocPattern` option of the library functions remains available for callers such as the VS Code extension.
+- **`expose_as` on the `export` artifacts** — It did not appear in the merge request; superseded by `notify-mr`.
+
+## [3.4.19] - 2026-10-22
+
+### Added
+
+- **`USE_MR_IID_AS_CR_NUMBER` CI variable** — Makes the "CR number must equal the MR IID" check of `validate-cr` optional. When `"false"`, `validate-cr` only requires that a CR number is present and that no `CR####.json` with that number exists in the history folder.
+- **`REQUIRE_TDOC_NUMBER_TAG` CI variable** — Default `"true"` (TDoc number shown on DIFF cover pages only if a matching git tag points at the commit). When `"false"`, the TDoc number is always shown.
+- **`notify-mr` CI job** — Posts a comment with links to the exported HTML, DOCX and ZIP on the branch's open merge request. Requires the `CI_NOTE_TOKEN` CI variable (project access token with `api` scope); `CI_JOB_TOKEN` cannot post MR notes. Replaces the former in-job comment of the `export` job, which never worked for that reason.
+
+### Changed
+
+- **Incomplete CR cover pages are rendered in DIFF exports** — In lenient mode (`export-docx-diff.js`, `export-html-diff.js`) a schema-conformant `CRxxxx.json` that only lacks the CR number and/or TDoc number is now rendered as a draft with a warning instead of omitting the cover page. `loadCRCoverPageData` and `validateCRCoverPageData` expose this via a new `incompleteOnly` result flag. Schema violations still suppress the cover page.
+
 ## [3.4.18] - 2026-10-19
 
 ### Changed
@@ -366,7 +389,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Complete rewrite from original internal tool
 - Modular architecture with separate HTML and DOCX paths
 
-[Unreleased]: https://github.com/Ericsson/specpress/compare/v3.4.17...HEAD
+[Unreleased]: https://github.com/Ericsson/specpress/compare/v3.4.20...HEAD
+[3.4.20]: https://github.com/Ericsson/specpress/compare/v3.4.19...v3.4.20
+[3.4.19]: https://github.com/Ericsson/specpress/compare/v3.4.18...v3.4.19
+[3.4.18]: https://github.com/Ericsson/specpress/compare/v3.4.17...v3.4.18
 [3.4.17]: https://github.com/Ericsson/specpress/compare/v3.4.16...v3.4.17
 [3.4.16]: https://github.com/Ericsson/specpress/compare/v3.4.15...v3.4.16
 [3.4.15]: https://github.com/Ericsson/specpress/compare/v3.4.14...v3.4.15
